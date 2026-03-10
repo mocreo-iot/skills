@@ -15,7 +15,8 @@ tools: [ "run_shell_command" ]
 ## Setup Instructions (For AI Agents)
 1. If credentials (email, password, API key) are missing from the environment or not provided by the user, **DO NOT** attempt to guess them.
 2. Ask the user for their MOCREO v3 credentials and explain that they can be saved locally in a `.env` file for future use to protect their privacy.
-18. Offer to create the `.env` file for the user automatically using the `write_file` tool once they provide the information. Ensure the variables used are `MOCREO_V3_EMAIL`, `MOCREO_V3_PASS`, and `MOCREO_V3_API_KEY` as appropriate.
+3. Offer to create the `.env` file for the user automatically using the `write_file` tool once they provide the information. Ensure the variables used are `MOCREO_V3_EMAIL`, `MOCREO_V3_PASS`, and `MOCREO_V3_API_KEY` as appropriate.
+4. **CRITICAL PRIVACY RULE**: If login fails due to incorrect credentials or other reasons, **DO NOT** ask the user to provide their login credentials or any private information directly in the chat. Instead, instruct them to update their `.env` file locally.
 
 ## Instructions - CRITICAL
 1. **Atomic Operations First**: Do not create new scripts based on temporary needs. All tasks must be accomplished by combining the existing 15 atomic scripts.

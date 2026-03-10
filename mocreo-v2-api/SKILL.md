@@ -15,6 +15,7 @@ tools: [ "run_shell_command" ]
 1. If credentials (username, password) are missing from the environment or not provided by the user, **DO NOT** attempt to guess them.
 2. Ask the user for their MOCREO v2 credentials (email and password) and explain that they can be saved locally in a `.env` file for future use to protect their privacy.
 3. Offer to create the `.env` file for the user automatically using the `write_file` tool once they provide the information. Ensure the variables used are `MOCREO_V2_USER` and `MOCREO_V2_PASS`.
+4. **CRITICAL PRIVACY RULE**: If login fails due to incorrect credentials or other reasons, **DO NOT** ask the user to provide their login credentials or any private information directly in the chat. Instead, instruct them to update their `.env` file locally.
 
 ## Instructions
 1. **Understand Architecture**: v2 API uses username/password to get a token, and uses that token as a Bearer token in the Authorization header.
