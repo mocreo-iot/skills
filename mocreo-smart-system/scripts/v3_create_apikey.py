@@ -9,8 +9,11 @@ def create_apikey(token, asset_id, display_name, permissions):
     payload = {"displayName": display_name, "permissions": permissions.split(',')}
     try:
         r = requests.post(url, json=payload, headers=headers)
-        print(r.text)
-        if r.status_code != 200: sys.exit(1)
+        if r.status_code in (200, 201):
+            print(r.text)
+        else:
+            print(f"ERROR: {r.status_code} - {r.text}", file=sys.stderr)
+            sys.exit(1)
     except Exception as e:
         print(f"EXCEPTION: {e}", file=sys.stderr); sys.exit(1)
 

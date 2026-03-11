@@ -10,8 +10,11 @@ def update_asset_config(auth_val, asset_id, config_json, is_apikey=False):
     try:
         payload = json.loads(config_json)
         r = requests.patch(url, json=payload, headers=headers)
-        print(r.text)
-        if r.status_code != 200: sys.exit(1)
+        if r.status_code == 200:
+            print(r.text)
+        else:
+            print(f"ERROR: {r.status_code} - {r.text}", file=sys.stderr)
+            sys.exit(1)
     except Exception as e: print(e, file=sys.stderr); sys.exit(1)
 
 if __name__ == "__main__":
