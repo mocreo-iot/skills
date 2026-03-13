@@ -20,7 +20,7 @@ pip install -r requirements.txt
 Try `pip3` or `python -m pip install requests python-dotenv` if that fails. Never ask the user to install packages.
 
 **Credentials**:
-1. Use the shared credential bootstrap at `../../scripts/bootstrap_credentials.py` on first setup, or let `scripts/v3_login.py` trigger the same terminal prompts when shared credentials are missing.
+1. Do not proactively read `.env`. Run `scripts/v3_login.py` as the first step. If it exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the fixed "Credential Missing" response defined in the root `SKILL.md` verbatim and wait for the user to confirm setup is complete before continuing.
 2. The bootstrap identifies the platform by guided questions about the app, hub model, or sensor family. It uses this mapping:
    - `MOCREO Smart App` = `MOCREO Smart System` = `MOCREO V3`
    - V3 hubs: `H3`, `H5-Lite`, `H5-Pro`, `H6-Lite`, `H6-Pro`
@@ -84,12 +84,11 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
    - Use the narrowest permissions possible. Prefer `device.read` unless the user clearly needs write access.
    - Relevant documented permissions include `asset.read`, `asset.update`, `device.read`, and `device.update`.
    - The full API key is only returned once. If you create one for immediate use, capture it from the create response and use it right away.
-   - By default, API key creation and deletion should rely on terminal confirmation prompts for high-risk decisions.
-   - If no default `MOCREO_V3_API_KEY` exists, `v3_create_apikey.py` may ask whether to save the new key as the default in `.env`.
-   - If a default key already exists, `v3_create_apikey.py` may ask whether to replace the existing `MOCREO_V3_API_KEY` with the new asset-bound key.
+   - These scripts run in a non-interactive shell. Never rely on their built-in terminal prompts — resolve all decisions in chat first, then pass the appropriate flags.
+   - **Creating a key**: Ask the user in chat whether to save it as the default `MOCREO_V3_API_KEY` in `.env`. If yes, pass `--save_to_env`; if no, omit it. Always decide before running the script.
+   - **Deleting a key**: Confirm with the user in chat before running. Always pass `--force` so the script does not prompt. If the deleted key was the current default, ask the user in chat whether to clear `MOCREO_V3_API_KEY` from `.env` and handle it separately if needed.
    - Do not overwrite `MOCREO_V3_API_KEY` silently. Only persist it after clear user confirmation, because API keys are asset-bound.
-   - `v3_delete_apikey.py` may detect that the target prefix matches the current default `MOCREO_V3_API_KEY` and ask for an extra confirmation before deleting it.
-   - If the deleted key was the current default, the delete flow may also ask whether `.env` should be cleared.
+   - When creating a new key or when the user has multiple keys, always remind them that `.env` holds only one `MOCREO_V3_API_KEY` at a time. Scripts that accept `--apikey` will use whichever key is currently saved there. If the user switches the default, the old default is no longer used by those scripts.
    - Temporary test keys must be deleted in the same session with `v3_delete_apikey.py`.
    - API keys are asset-bound and cannot be reused across assets.
    - Respect documented rate limits for API-key traffic: at most 1000 requests per hour and at most 3 concurrent requests per key.

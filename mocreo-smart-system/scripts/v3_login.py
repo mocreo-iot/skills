@@ -41,5 +41,9 @@ if __name__ == "__main__":
     if args.email and not args.user:
         args.user = args.email
 
+    if not args.user or not args.password:
+        print("MOCREO_CREDENTIALS_MISSING: No credentials found in .env. Run the setup script to configure.", file=sys.stderr)
+        sys.exit(2)
+
     creds = build_credentials_from_args(args, fallback_platform="smart")
     login(creds["user"], creds["password"])

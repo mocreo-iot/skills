@@ -25,6 +25,10 @@ def main():
     if args.password_legacy and not args.password:
         args.password = args.password_legacy
 
+    if not args.user or not args.password:
+        print("MOCREO_CREDENTIALS_MISSING: No credentials found in .env. Run the setup script to configure.", file=sys.stderr)
+        sys.exit(2)
+
     creds = build_credentials_from_args(args, fallback_platform="sensor")
 
     if not creds["user"] or not creds["password"]:

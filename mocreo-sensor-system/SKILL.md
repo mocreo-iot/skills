@@ -20,7 +20,7 @@ pip install -r requirements.txt
 Try `pip3` or `python -m pip install requests python-dotenv` if that fails. Never ask the user to install packages.
 
 **Credentials**:
-1. Use the shared credential bootstrap at `../../scripts/bootstrap_credentials.py` on first setup, or let `scripts/v2_login.py` trigger the same terminal prompts when shared credentials are missing.
+1. Do not proactively read `.env`. Run `scripts/v2_login.py` as the first step. If it exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the fixed "Credential Missing" response defined in the root `SKILL.md` verbatim and wait for the user to confirm setup is complete before continuing.
 2. The bootstrap identifies the platform by guided questions about the app, hub model, or sensor family. It uses this mapping:
    - `MOCREO Sensor App` = `MOCREO Sensor System` = `MOCREO V2`
    - V2 hubs: `H1`, `H2`
