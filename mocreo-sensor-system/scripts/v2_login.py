@@ -3,27 +3,38 @@ import argparse
 import requests
 import json
 import sys
-from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from common.mocreo_auth import add_shared_auth_args, build_credentials_from_args
 
 BASE_URL = "https://api.sync-sign.com/v2"
 
 def main():
     parser = argparse.ArgumentParser(description="MOCREO v2 API: Get oauth token")
-    parser.add_argument("--username", default=os.getenv("MOCREO_V2_USER"), help="Username (can be set via MOCREO_V2_USER env var)")
-    parser.add_argument("--password", default=os.getenv("MOCREO_V2_PASS"), help="Password (can be set via MOCREO_V2_PASS env var)")
+    add_shared_auth_args(parser, "Platform for shared credential bootstrap")
+    parser.add_argument("--username", default=None, help="Backward-compatible alias for --user")
+    parser.add_argument("--password-legacy", dest="password_legacy", default=None, help="Backward-compatible alias for --password")
     args = parser.parse_args()
 
-    if not args.username or not args.password:
-        print("Error: Username and password are required. Provide them via arguments or .env file.")
+    if args.username and not args.user:
+        args.user = args.username
+    if args.password_legacy and not args.password:
+        args.password = args.password_legacy
+
+    creds = build_credentials_from_args(args, fallback_platform="sensor")
+
+    if not creds["user"] or not creds["password"]:
+        print("Error: Username and password are required. Provide them via arguments or the bootstrap prompt.")
         sys.exit(1)
 
     url = f"{BASE_URL}/oauth/token"
     payload = {
-        "grant_type": "password",
-        "username": args.username,
-        "password": args.password,
+        "username": creds["user"],
+        "password": creds["password"],
         "provider": "mocreo"
     }
     

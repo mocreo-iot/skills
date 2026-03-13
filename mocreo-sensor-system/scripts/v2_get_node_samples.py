@@ -9,18 +9,28 @@ def main():
     parser = argparse.ArgumentParser(description="MOCREO v2 API: Get node samples (history)")
     parser.add_argument("--token", required=True, help="Bearer token")
     parser.add_argument("--node_id", required=True, help="Node ID")
-    parser.add_argument("--start", help="Start timestamp")
-    parser.add_argument("--end", help="End timestamp")
+    parser.add_argument("--begin_time", help="Begin time in seconds")
+    parser.add_argument("--end_time", help="End time in seconds")
+    parser.add_argument("--start", dest="start_legacy", help="Backward-compatible alias for --begin_time")
+    parser.add_argument("--end", dest="end_legacy", help="Backward-compatible alias for --end_time")
     parser.add_argument("--limit", type=int, default=1, help="Limit number of samples")
+    parser.add_argument("--offset", type=int, help="Number of rows to skip before returning data")
     args = parser.parse_args()
+
+    if args.start_legacy and not args.begin_time:
+        args.begin_time = args.start_legacy
+    if args.end_legacy and not args.end_time:
+        args.end_time = args.end_legacy
 
     url = f"{BASE_URL}/nodes/{args.node_id}/samples"
     headers = {"Authorization": f"Bearer {args.token}"}
     params = {"limit": args.limit}
-    if args.start:
-        params['start'] = args.start
-    if args.end:
-        params['end'] = args.end
+    if args.offset is not None:
+        params["offset"] = args.offset
+    if args.begin_time:
+        params["beginTime"] = args.begin_time
+    if args.end_time:
+        params["endTime"] = args.end_time
     
     try:
         response = requests.get(url, headers=headers, params=params)

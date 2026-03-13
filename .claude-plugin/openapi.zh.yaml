@@ -1,0 +1,1453 @@
+openapi: 3.0.3
+info:
+  title: MOCREO IoT 平台公开 API 文档
+  description: |
+    MOCREO IoT 平台公开 API 文档 v1.0 中文版
+    
+    欢迎使用 MOCREO IoT 平台的公开 API！本文档将引导您如何通过程序化的方式与您的 MOCREO 设备和数据进行交互，实现自动化管理和数据集成。
+    
+    ## 系统介绍
+    
+    MOCREO IoT 平台是一个强大的远程监控解决方案，旨在通过我们的智能传感器和网关设备，帮助您实时追踪和管理环境数据。无论您是需要监控温度、湿度，还是防止漏水，MOCREO 都能提供可靠、易用的工具。
+    
+    本套公开 API 旨在为您提供一个程序化访问和管理您账户下资源的通道。通过这些接口，您可以：
+    
+    * 获取您名下资产和设备的详细信息。
+    * 读取设备上报的传感器历史数据。
+    * 以编程方式触发数据的导出。
+    * 将 MOCREO 的数据集成到您自己的应用程序或第三方服务中。
+    
+    ## 基本概念
+    
+    * **资产 (Asset)**：代表一个逻辑或物理空间，是您管理设备的顶层容器，例如"我的家"、"办公室仓库"。每个 API Key 都与一个特定的资产绑定。
+    * **设备 (Device)**：指 MOCREO 的硬件产品，如 ST6 气候传感器、SW2 漏水传感器或 H5-LITE 网关。设备被"绑定"在某个资产下。
+    * **API Key**：您用于 API 认证的唯一凭证，它授予了对特定资产下资源的程序化访问权限。
+    
+    ## 认证方式
+    
+    本平台的所有公开 API 均采用 API Key 进行认证。这是一种简单而安全的认证方式。
+    
+    您需要在每次 API 请求的 HTTP 头 (Header) 中，附带一个名为 `X-API-Key` 的字段，其值为您创建的完整 API Key。
+    
+    **API Key 结构：**
+    
+    您的 API Key 由三部分组成，格式为 `mok_[Prefix]_[Secret]`。
+    
+    * `mok_`: 固定标识符。
+    * `Prefix`: Key 的公开前缀，用于识别。
+    * `Secret`: Key 的私密部分，用于认证。
+    
+    ## 如何创建 API Key
+    
+    API Key 必须通过 MOCREO 的 Web 管理后台进行创建（未实现，先使用API生成API KEY）。
+    
+    1. 登录您的 MOCREO 账户。
+    2. 导航至您希望为其创建 API Key 的**资产 (Asset)**。
+    3. 进入该资产的 **"设置"** 页面，找到并点击 **"API Keys"** 标签页。
+    4. 点击 **"创建 API Key"** 按钮。
+    5. 在弹出的窗口中：
+       * 为这个 Key 输入一个易于识别的**显示名称**（例如："我的数据备份脚本"）。
+       * 从列表中勾选您希望授予该 Key 的**权限**（例如 `device.read` 和 `device.update`）。
+       * （可选）您可以设置一个**过期时间**，到期后该 Key 将自动失效。
+    6. 点击 **"创建"**。
+    7. 系统将生成并显示您的**完整 API Key**。
+    
+    > **再次强调：这是您唯一一次能看到完整 Key 的机会！请立即复制并妥善保管它。**
+    
+    ## 权限系统
+    
+    安全是我们的首要任务。API Key 的权限遵循以下原则：
+    
+    1. **资产绑定**：每个 API Key 都严格绑定到一个创建时指定的**资产 (Asset)**。该 Key 的所有操作都无法跨越到其他资产。
+    2. **最小权限原则**：在创建 API Key 时，您需要为其授予一组明确的权限。一个 Key 只能执行其被授予权限范围内的操作。
+    
+    以下是本次公开 API 相关的权限点：
+    
+    * `asset.read`: 允许读取资产的基本信息。
+    * `asset.update`: 允许更新资产信息，例如修改资产名称和配置。
+    * `device.read`: 允许读取设备列表、设备详情、历史数据和代理信息。
+    * `device.update`: 允许更新设备信息，例如修改设备名称。
+    * `membership.read`: 允许读取成员信息。
+    * `membership.update`: 允许更新成员信息。
+    * `membership.delete`: 允许删除成员。
+    
+    ## 速率限制
+    
+    为了保证服务的稳定，所有通过 API Key 的请求都会受到速率限制：
+    
+    * **总请求数限制**：每个 API Key 每小时最多允许 **1000** 次请求。
+    * **并发请求限制**：每个 API Key 同时最多允许 **3** 个并发请求。
+    
+    如果超出限制，服务器将返回 `429 Too Many Requests` 错误。
+  version: 1.0.0
+  contact:
+    name: MOCREO IoT API Support
+    email: support@mocreo.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.mocreo.com/v1
+    description: MOCREO
+
+paths:
+
+  /users/login:
+    post:
+      summary: 账号密码登录
+      description: 使用邮箱和密码进行用户登录
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/refreshToken:
+    get:
+      summary: 刷新访问令牌
+      description: 使用刷新令牌获取新的访问令牌
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: refreshToken
+          in: query
+          required: true
+          description: 刷新令牌
+          schema:
+            type: string
+            example: "refresh_token_example"
+      responses:
+        '200':
+          description: 令牌刷新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /assets:
+    get:
+      summary: 获取资产列表
+      description: 获取当前用户有权访问的所有资产列表
+      tags:
+        - Assets
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功获取资产列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Asset'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /assets/{assetId}/apikeys:
+    post:
+      summary: 创建API Key
+      description: 为指定资产创建新的API Key
+      tags:
+        - API Keys
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyRequest'
+      responses:
+        '200':
+          description: API Key创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    get:
+      summary: 获取API Key列表
+      description: 获取指定资产的所有API Key列表
+      tags:
+        - API Keys
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+      responses:
+        '200':
+          description: 成功获取API Key列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/apikeys/{apiKeyPrefix}:
+    delete:
+      summary: 删除API Key
+      description: 永久删除指定的API Key
+      tags:
+        - API Keys
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: apiKeyPrefix
+          in: path
+          required: true
+          description: API Key的8位前缀
+          schema:
+            type: string
+            example: "a1b2c3d4"
+      responses:
+        '204':
+          description: API Key删除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}:
+    get:
+      summary: 获取资产详情
+      description: |
+        根据资产ID获取资产详细信息
+        
+        **所需权限**: `asset.read`
+      tags:
+        - Assets
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+      responses:
+        '200':
+          description: 成功获取资产详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    $ref: '#/components/schemas/Asset'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: 更新资产信息
+      description: |
+        更新指定资产的信息
+        
+        **所需权限**: `asset.update`
+      tags:
+        - Assets
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - displayName
+              properties:
+                displayName:
+                  type: string
+                  description: 资产显示名称
+                  example: "智能办公楼A座-更新"
+      responses:
+        '200':
+          description: 资产更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    $ref: '#/components/schemas/Asset'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/config:
+    patch:
+      summary: 更新资产配置
+      description: |
+        更新指定的资产配置
+        
+        **所需权限**: `asset.update`
+      tags:
+        - Assets
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                city:
+                  type: string
+                  description: 城市名称
+                  example: "shenzhen"
+      responses:
+        '200':
+          description: 资产配置更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    $ref: '#/components/schemas/Asset'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/devices:
+    get:
+      summary: 获取设备列表
+      description: |
+        获取指定资产下的所有设备
+        
+        **所需权限**: `device.read`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "68aeae18283f90af7b472b82"
+      responses:
+        '200':
+          description: 成功获取设备列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/devices/{deviceId}:
+    get:
+      summary: 获取设备详情
+      description: |
+        获取指定设备的详细信息
+        
+        **所需权限**: `device.read`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: deviceId
+          in: path
+          required: true
+          description: 设备ID
+          schema:
+            type: string
+            example: "1234567890AB"
+      responses:
+        '200':
+          description: 成功获取设备详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    $ref: '#/components/schemas/Device'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
+  /assets/{assetId}/devices/{deviceId}/name:
+    patch:
+      summary: 更新设备名称
+      description: |
+        更新指定设备的显示名称
+        
+        **所需权限**: `device.update`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: deviceId
+          in: path
+          required: true
+          description: 设备ID
+          schema:
+            type: string
+            example: "1234567890AB"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: 新的设备显示名称
+                  example: "地下室传感器"
+      responses:
+        '200':
+          description: 设备名称更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        example: "地下室传感器"
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/devices/{deviceId}/signal:
+    get:
+      summary: 查询设备代理信息
+      description: |
+        查询传感器与其代理网关之间的信号强度信息
+        
+        **所需权限**: `device.read`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: deviceId
+          in: path
+          required: true
+          description: 传感器或网关的设备ID
+          schema:
+            type: string
+            example: "1234567890AB"
+      responses:
+        '200':
+          description: 成功获取设备代理信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        gatewayId:
+                          type: string
+                          description: 代理网关的设备ID
+                          example: "HUB_DEVICE_ID_123"
+                        signal:
+                          type: number
+                          description: 信号强度，范围从0(弱)到100(强)
+                          example: 95
+                        deviceInfo:
+                          type: object
+                          description: 代理网关的设备信息对象
+                          properties:
+                            id:
+                              type: string
+                              example: "HUB_DEVICE_ID_123"
+                            model:
+                              type: string
+                              example: "H5-LITE"
+                            name:
+                              type: string
+                              example: "Wi-Fi Hub"
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/devices/{deviceId}/history:
+    get:
+      summary: 查询设备测量数据历史记录
+      description: |
+        查询指定设备在一段时间内的传感器历史数据
+        
+        **所需权限**: `device.read`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: deviceId
+          in: path
+          required: true
+          description: 设备ID
+          schema:
+            type: string
+            example: "1234567890AB"
+        - name: from
+          in: query
+          required: true
+          description: "必需。开始时间的 Unix 毫秒时间戳。示例：1711031478155"
+          schema:
+            type: number
+            example: 1675209600000
+        - name: to
+          in: query
+          required: true
+          description: "必需。结束时间的 Unix 毫秒时间戳。示例：1711517878157"
+          schema:
+            type: number
+            example: 1675209600000
+        - name: tz
+          in: query
+          required: true
+          description: "必需。IANA 时区标识符 (例如 Asia/Shanghai, America/New_York)。示例：Asia/Shanghai"
+          schema:
+            type: string
+            example: "Asia/Shanghai"
+        - name: field
+          in: query
+          required: true
+          description: "必需。要查询的测量字段。有效值: temperature, humidity, water_leak, water_level, frozen。示例：temperature"
+          schema:
+            type: string
+            enum: [temperature, humidity, water_leak, water_level, frozen]
+            example: "temperature"
+        - name: windowDuration
+          in: query
+          required: false
+          description: "(可选) 聚合窗口。格式为 数字+单位 (例如 1m, 30m, 1h, 1d, 1mo)。如果提供此参数，将返回聚合数据。示例：1d"
+          schema:
+            type: string
+            pattern: '^\d+[mhd]|^\d+mo$'
+            example: "1d"
+        - name: aggregationsType
+          in: query
+          required: false
+          description: "(可选) 聚合函数，多个用逗号分隔。有效值: mean, max, min。仅在 windowDuration 存在时生效。示例：max,min,mean"
+          schema:
+            type: string
+            pattern: '^(mean|max|min)(,(mean|max|min))*$'
+            example: "max,min,mean"
+        - name: limit
+          in: query
+          required: false
+          description: "(可选) 返回的数据点数量上限。范围: 1-10000。适用于 water_leak_state 等事件型数据。与聚合参数互斥。"
+          schema:
+            type: number
+            minimum: 1
+            maximum: 10000
+            example: 1000
+      responses:
+        '200':
+          description: 成功获取设备历史数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            time:
+                              type: number
+                              description: 时间戳
+                              example: 1672531200000
+                            value:
+                              type: number
+                              description: 测量值
+                              example: 25.5
+                            deviceId:
+                              type: string
+                              description: 设备ID
+                              example: "AB1234567890"
+                            field:
+                              type: string
+                              description: 测量字段
+                              example: "temperature"
+                            unit:
+                              type: string
+                              description: 单位
+                              example: "℃"
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/devices/{deviceId}/history/export:
+    get:
+      summary: 导出数据到指定邮箱
+      description: |
+        将设备的历史数据导出为CSV文件，并通过邮件发送下载链接到指定邮箱
+        
+        **所需权限**: `device.read`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: 资产ID
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: deviceId
+          in: path
+          required: true
+          description: 设备ID
+          schema:
+            type: string
+            example: "1234567890AB"
+        - name: email
+          in: query
+          required: true
+          description: "必需。接收下载链接的邮箱地址。示例：recipient@example.com"
+          schema:
+            type: string
+            format: email
+            example: "recipient@example.com"
+        - name: from
+          in: query
+          required: true
+          description: "必需。开始时间的 Unix 毫秒时间戳。示例：1711031478155"
+          schema:
+            type: number
+            example: 1672531200000
+        - name: to
+          in: query
+          required: true
+          description: "必需。结束时间的 Unix 毫秒时间戳。示例：1711517878157"
+          schema:
+            type: number
+            example: 1675209600000
+        - name: tz
+          in: query
+          required: true
+          description: "必需。IANA 时区标识符。示例：Asia/Shanghai"
+          schema:
+            type: string
+            example: "Asia/Shanghai"
+        - name: fields
+          in: query
+          required: true
+          description: "必需。要导出的测量字段，多个用逗号分隔。有效值: temperature, humidity, water_leak, water_level, frozen。示例：temperature,humidity"
+          schema:
+            type: string
+            pattern: '^(temperature|humidity|water_leak|water_level|frozen)(,(temperature|humidity|water_leak|water_level|frozen))*$'
+            example: "temperature,humidity"
+        - name: windowDuration
+          in: query
+          required: false
+          description: "(可选) 聚合窗口。格式为 数字+单位 (例如 1m, 30m, 1h, 1d, 1mo)。示例：30d"
+          schema:
+            type: string
+            pattern: '^\d+[mhd]|^\d+mo$'
+            example: "30d"
+        - name: aggregationsType
+          in: query
+          required: false
+          description: "(可选) 聚合函数，多个用逗号分隔。有效值: mean, max, min。示例：max,min,mean"
+          schema:
+            type: string
+            pattern: '^(mean|max|min)(,(mean|max|min))*$'
+            example: "max,min,mean"
+      responses:
+        '200':
+          description: 数据导出请求成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: string
+                    description: 直接下载链接
+                    example: "https://s3.amazonaws.com/your-bucket/path/to/file.csv?AWSAccessKeyId=..."
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API Key认证，用于服务间调用和第三方集成。
+        
+        API Key格式：`mok_<prefix>_<secret>`
+        
+        使用方式：
+        1. 在请求头中添加 `X-API-Key: mok_<prefix>_<secret>`
+        2. API Key会自动关联到对应的资产
+        3. 只能访问该资产下的资源
+        
+        **重要提示**：
+        `Secret` 部分仅在创建时显示一次。您必须立即将其复制并安全地存储在您的应用程序或密码管理器中。**MOCREO 不会以明文形式存储您的 Secret**，因此一旦丢失，将无法找回，您只能删除旧 Key 并重新创建一个。
+    
+    bearerAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: |
+        Bearer Token认证，用于用户会话管理。
+        
+        使用方式：
+        1. 在请求头中添加 `Authorization: Bearer <token>`
+        2. Token通过登录接口获取
+        3. Token有效期有限，可通过刷新Token接口续期
+
+  parameters:
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: 用户邮箱
+          example: "user@example.com"
+        password:
+          type: string
+          description: 用户密码
+          example: "password123"
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        result:
+          type: object
+          properties:
+            token:
+              type: string
+              description: JWT访问令牌
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            refreshToken:
+              type: string
+              description: 刷新令牌
+              example: "refresh_token_example"
+            user:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "user_123"
+                email:
+                  type: string
+                  example: "user@example.com"
+        messages:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        result:
+          type: object
+          properties:
+            token:
+              type: string
+              description: 新的JWT访问令牌
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        messages:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    ApiKeyRequest:
+      type: object
+      required:
+        - displayName
+        - permissions
+      properties:
+        displayName:
+          type: string
+          description: API Key显示名称
+          example: "我的自动化服务器"
+        permissions:
+          type: array
+          items:
+            type: string
+            enum: [asset.read, asset.update, device.read, device.update, membership.read, membership.update, membership.delete]
+          description: 权限列表
+          example: ["device.read", "device.update"]
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 过期时间，ISO 8601格式，null表示永不过期
+          example: "2026-12-31T23:59:59.000Z"
+
+    ApiKeyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        result:
+          type: object
+          properties:
+            key:
+              type: string
+              description: 完整的API Key（仅在创建时显示）
+              example: "mok_a1b2c3d4_xYz123wUVabcDEF..."
+            message:
+              type: string
+              example: "这是您唯一一次看到完整API Key的机会。请安全保存。"
+            id:
+              type: string
+              description: API Key ID
+              example: "65a123b4cde567f890a123b4"
+            displayName:
+              type: string
+              example: "我的自动化服务器"
+            prefix:
+              type: string
+              description: API Key前缀
+              example: "a1b2c3d4"
+            assetId:
+              type: string
+              example: "64af9199134bf5aa7bf18bbd"
+            permissions:
+              type: array
+              items:
+                type: string
+              example: ["device.read", "device.update"]
+            expiresAt:
+              type: string
+              format: date-time
+              nullable: true
+              example: "2026-12-31T23:59:59.000Z"
+        messages:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    ApiKeyInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          description: API Key ID
+          example: "65a123b4cde567f890a123b4"
+        displayName:
+          type: string
+          example: "我的自动化服务器"
+        prefix:
+          type: string
+          description: API Key前缀
+          example: "a1b2c3d4"
+        assetId:
+          type: string
+          example: "64af9199134bf5aa7bf18bbd"
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["device.read", "device.update"]
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最后使用时间
+          example: "2025-08-20T10:30:00.000Z"
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-12-31T23:59:59.000Z"
+
+    ApiKeyListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiKeyInfo'
+        messages:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    Asset:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 资产ID
+          example: "64af9199134bf5aa7bf18bbd"
+        displayName:
+          type: string
+          description: 资产显示名称
+          example: "我的家"
+        inventory:
+          type: boolean
+          description: 是否为默认资产
+          example: true
+        tenantId:
+          type: string
+          description: 所属租户ID
+          example: "64b8ebcbd25791610115a5af"
+        owner:
+          type: string
+          description: 资产所有者ID
+          example: "user-id-xxxx"
+        ownerEmail:
+          type: string
+          format: email
+          description: 资产所有者邮箱
+          example: "user@example.com"
+        config:
+          type: object
+          description: 资产配置
+          properties:
+            tz:
+              type: string
+              description: 时区
+              example: "Asia/Shanghai"
+            units:
+              type: object
+              description: 单位配置
+              properties:
+                temperature:
+                  type: string
+                  example: "℃"
+                humidity:
+                  type: string
+                  example: "%"
+            location:
+              type: object
+              description: 地理位置
+              properties:
+                latitude:
+                  type: number
+                  example: 39.9042
+                longitude:
+                  type: number
+                  example: 116.4074
+        deviceCount:
+          type: number
+          description: 设备数量
+          example: 5
+        updatedAt:
+          type: number
+          description: 更新时间戳
+          example: 1640995200000
+
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 设备ID
+          example: "AB1234567890"
+        assetId:
+          type: string
+          description: 所属资产ID
+          example: "64af9199134bf5aa7bf18bbd"
+        type:
+          type: string
+          description: 设备类型
+          enum: [HUB, NODE]
+          example: "NODE"
+        model:
+          type: string
+          description: 设备型号
+          example: "ST6"
+        name:
+          type: string
+          description: 设备名称
+          example: "Climate Sensor"
+        attributes:
+          type: object
+          description: 设备属性
+          properties:
+            labels:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                  example: "客厅温湿度计"
+                roomId:
+                  type: string
+                  example: "room_001"
+                alarm:
+                  type: boolean
+                  example: false
+            online:
+              type: boolean
+              description: 在线状态
+              example: true
+            lastOnline:
+              type: number
+              description: 最后在线时间戳
+              example: 1675209600
+        properties:
+          type: object
+          description: 设备属性数据
+          properties:
+            temperature:
+              type: number
+              example: 25.5
+            humidity:
+              type: number
+              example: 60.1
+            battery_percentage:
+              type: number
+              example: 98
+        updatedAt:
+          type: number
+          description: 更新时间戳
+          example: 1640995200000
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        result:
+          type: string
+          nullable: true
+          example: null
+        messages:
+          type: array
+          description: 消息列表
+          items:
+            type: string
+          example: []
+        errors:
+          type: array
+          description: 错误信息列表
+          items:
+            type: object
+            properties:
+              message:
+                type: string
+                description: 错误消息
+                example: "Descriptive error message."
+              code:
+                type: integer
+                description: |
+                  错误码，表示具体的错误类型：
+                  - 400: Bad Request - 请求参数错误
+                  - 401: Unauthorized - API Key 无效或缺失
+                  - 403: Forbidden - 权限不足
+                  - 404: Not Found - 资源不存在
+                  - 429: Too Many Requests - 请求超出速率限制
+                  - 500: Internal Server Error - 服务器内部错误
+                enum: [400, 401, 403, 404, 429, 500]
+          example:
+            - message: "Descriptive error message."
+              code: 401
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "请求参数错误"
+                code: 400 
+
+    Unauthorized:
+      description: 未授权访问
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "请先登录"
+                code: 401
+
+    Forbidden:
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "权限不足"
+                code: 403
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "资源不存在"
+                code: 404
+
+    TooManyRequests:
+      description: 请求过多
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "您的请求已超出速率限制"
+                code: 429
+
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "服务器内部错误"
+                code: 500
+
+tags:
+  - name: Users
+    description: 用户认证相关接口
+  - name: API Keys
+    description: API Key管理相关接口
+  - name: Assets
+    description: 资产管理相关接口
+  - name: Devices
+    description: 设备管理相关接口
+

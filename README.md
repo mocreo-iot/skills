@@ -2,6 +2,55 @@
 
 Let your AI agent operate MOCREO devices directly, using plain language.
 
+## Install
+
+**Option 1 — Claude Code plugin marketplace:**
+
+```bash
+/plugin marketplace add mocreo-iot/skills
+```
+
+Or install a specific version by package name:
+
+```bash
+/plugin install mocreo-skills@1.0.0
+```
+
+**Option 2 — npx (skills.sh):**
+
+```bash
+npx skills add mocreo-iot/skills
+```
+
+Both methods install the root `mocreo-api` skill, which acts as a router for the two system-specific skills in this repo:
+
+- `mocreo-sensor-system`
+- `mocreo-smart-system`
+
+After installation, ask naturally for the task you want. The root skill will route to the correct sub-skill based on whether your request is about the MOCREO Sensor System or the MOCREO Smart System.
+
+## First Login Setup
+
+On first use, run:
+
+```bash
+python scripts/bootstrap_credentials.py
+```
+
+The bootstrap flow avoids manual `.env` editing:
+- It asks guided terminal questions about the app, Hub, or Sensor model to determine whether you are on Sensor System (V2) or Smart System (V3).
+- It then asks for your MOCREO account and password directly in the terminal.
+- Password input is hidden and the values are saved only to the local git-ignored `.env` file.
+
+Shared configuration uses:
+
+```env
+MOCREO_USER=your_email@example.com
+MOCREO_PASS=your_password
+MOCREO_PLATFORM=sensor_or_smart
+MOCREO_V3_API_KEY=your_api_key
+```
+
 ## What You Can Ask
 
 **Device Health**
@@ -33,7 +82,7 @@ Let your AI agent operate MOCREO devices directly, using plain language.
 
 ## Privacy
 
-Credentials are stored in a local `.env` file (git-ignored). AI agents are explicitly instructed never to guess credentials or request passwords in chat.
+Credentials are stored only in the local `.env` file (git-ignored). The setup flow uses hidden terminal password entry, and AI agents are instructed never to guess credentials or request passwords in chat.
 
 ## License
 

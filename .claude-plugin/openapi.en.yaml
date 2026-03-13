@@ -1,0 +1,1452 @@
+openapi: 3.0.3
+info:
+  title: MOCREO IoT Platform Public API Documentation
+  description: |
+    MOCREO IoT Platform Public API Documentation v1.0 English Version
+
+    Welcome to the MOCREO IoT Platform's public API! This document will guide you on how to programmatically interact with your MOCREO devices and data to achieve automated management and data integration.
+
+    ## System Introduction
+
+    The MOCREO IoT Platform is a powerful remote monitoring solution designed to help you track and manage environmental data in real-time through our smart sensors and gateway devices. Whether you need to monitor temperature, humidity, or prevent water leaks, MOCREO provides reliable and easy-to-use tools.
+
+    This set of public APIs is designed to provide you with a programmatic channel to access and manage the resources under your account. Through these interfaces, you can:
+
+    * Get detailed information about your assets and devices.
+    * Read historical sensor data reported by devices.
+    * Programmatically trigger data exports.
+    * Integrate MOCREO data into your own applications or third-party services.
+
+    ## Basic Concepts
+
+    * **Asset**: Represents a logical or physical space, serving as the top-level container for managing your devices, such as "My Home" or "Office Warehouse". Each API Key is bound to a specific asset.
+    * **Device**: Refers to MOCREO hardware products, like the ST6 climate sensor, SW2 water leak sensor, or H5-LITE gateway. Devices are "bound" to an asset.
+    * **API Key**: Your unique credential for API authentication, granting programmatic access to resources under a specific asset.
+
+    ## Authentication
+
+    All public APIs on this platform use API Key for authentication. This is a simple and secure method.
+
+    You must include an HTTP header named `X-API-Key` in every API request, with its value being your complete API Key.
+
+    **API Key Structure:**
+
+    Your API Key consists of three parts, in the format `mok_[Prefix]_[Secret]`.
+
+    * `mok_`: A fixed identifier.
+    * `Prefix`: The public prefix of the key, used for identification.
+    * `Secret`: The private part of the key, used for authentication.
+
+    ## How to Create an API Key
+
+    API Keys must be created through the MOCREO web dashboard (Feature not yet implemented, use the API to generate API keys for now).
+
+    1.  Log in to your MOCREO account.
+    2.  Navigate to the **Asset** for which you want to create an API Key.
+    3.  Go to the asset's **"Settings"** page and find and click the **"API Keys"** tab.
+    4.  Click the **"Create API Key"** button.
+    5.  In the pop-up window:
+        * Enter an easy-to-recognize **display name** for this key (e.g., "My Data Backup Script").
+        * Check the **permissions** you wish to grant to the key from the list (e.g., `device.read` and `device.update`).
+        * (Optional) You can set an **expiration date**, after which the key will automatically become invalid.
+    6.  Click **"Create"**.
+    7.  The system will generate and display your **full API Key**.
+
+    > **Important: This is the only time you will see the full key! Please copy and store it securely immediately.**
+
+    ## Permission System
+
+    Security is our top priority. The permissions for API Keys follow these principles:
+
+    1.  **Asset-Bound**: Each API Key is strictly bound to the **Asset** specified at the time of creation. All operations using this key cannot cross over to other assets.
+    2.  **Principle of Least Privilege**: When creating an API Key, you must grant it a specific set of permissions. A key can only perform operations within the scope of its granted permissions.
+
+    Here are the permissions relevant to this public API:
+
+    * `asset.read`: Allows reading basic information about the asset.
+    * `asset.update`: Allows updating asset information, such as modifying asset names and configurations.
+    * `device.read`: Allows reading the device list, device details, historical data, and proxy information.
+    * `device.update`: Allows updating device information, such as changing the device name.
+    * `membership.read`: Allows reading member information.
+    * `membership.update`: Allows updating member information.
+    * `membership.delete`: Allows deleting members.
+
+    ## Rate Limiting
+
+    To ensure the stability of the service, all requests made via API Key are subject to rate limits:
+
+    * **Total Request Limit**: Each API Key is allowed a maximum of **1000** requests per hour.
+    * **Concurrent Request Limit**: Each API Key is allowed a maximum of **3** concurrent requests.
+
+    If you exceed the limit, the server will return a `429 Too Many Requests` error.
+  version: 1.0.0
+  contact:
+    name: MOCREO IoT API Support
+    email: support@mocreo.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.mocreo.com/v1
+    description: MOCREO
+
+paths:
+
+  /users/login:
+    post:
+      summary: User Login
+      description: User login with email and password
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/refreshToken:
+    get:
+      summary: Refresh Access Token
+      description: Get a new access token using refresh token
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: refreshToken
+          in: query
+          required: true
+          description: Refresh token
+          schema:
+            type: string
+            example: "refresh_token_example"
+      responses:
+        '200':
+          description: Token refresh successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /assets:
+    get:
+      summary: Get Asset List
+      description: Get all assets accessible to the current user
+      tags:
+        - Assets
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved asset list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Asset'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /assets/{assetId}/apikeys:
+    post:
+      summary: Create API Key
+      description: Create a new API Key for the specified asset
+      tags:
+        - API Keys
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyRequest'
+      responses:
+        '200':
+          description: API Key created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    get:
+      summary: Get API Key List
+      description: Get all API Keys for the specified asset
+      tags:
+        - API Keys
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+      responses:
+        '200':
+          description: Successfully retrieved API Key list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/apikeys/{apiKeyPrefix}:
+    delete:
+      summary: Delete API Key
+      description: Permanently delete the specified API Key
+      tags:
+        - API Keys
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: apiKeyPrefix
+          in: path
+          required: true
+          description: The 8-character prefix of the API Key
+          schema:
+            type: string
+            example: "a1b2c3d4"
+      responses:
+        '204':
+          description: API Key deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}:
+    get:
+      summary: Get Asset Details
+      description: |
+        Retrieve detailed information for a specific asset by its ID.
+        
+        **Required Permissions**: `asset.read`
+      tags:
+        - Assets
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset.
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+      responses:
+        '200':
+          description: Successfully retrieved asset details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    $ref: '#/components/schemas/Asset'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update Asset Information
+      description: |
+        Update the information of a specified asset.
+        
+        **Required Permissions**: `asset.update`
+      tags:
+        - Assets
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset.
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - displayName
+              properties:
+                displayName:
+                  type: string
+                  description: The display name of the asset.
+                  example: "Smart Office Building A - Updated"
+      responses:
+        '200':
+          description: Asset updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    $ref: '#/components/schemas/Asset'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/config:
+    patch:
+      summary: Update Asset Configuration
+      description: |
+        Update the configuration for a specified asset.
+        
+        **Required Permissions**: `asset.update`
+      tags:
+        - Assets
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset.
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                city:
+                  type: string
+                  description: The name of the city.
+                  example: "shenzhen"
+      responses:
+        '200':
+          description: Asset configuration updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    $ref: '#/components/schemas/Asset'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/devices:
+    get:
+      summary: Get Device List
+      description: |
+        Retrieve all devices under a specified asset.
+        
+        **Required Permissions**: `device.read`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset.
+          schema:
+            type: string
+            example: "68aeae18283f90af7b472b82"
+      responses:
+        '200':
+          description: Successfully retrieved the device list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/devices/{deviceId}:
+    get:
+      summary: Get Device Details
+      description: |
+        Retrieve detailed information for a specific device.
+        
+        **Required Permissions**: `device.read`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset.
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: deviceId
+          in: path
+          required: true
+          description: The ID of the device.
+          schema:
+            type: string
+            example: "1234567890AB"
+      responses:
+        '200':
+          description: Successfully retrieved device details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    $ref: '#/components/schemas/Device'
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/devices/{deviceId}/name:
+    patch:
+      summary: Update Device Name
+      description: |
+        Update the display name of a specific device.
+        
+        **Required Permissions**: `device.update`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset.
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: deviceId
+          in: path
+          required: true
+          description: The ID of the device.
+          schema:
+            type: string
+            example: "1234567890AB"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: The new display name for the device.
+                  example: "Basement Sensor"
+      responses:
+        '200':
+          description: Device name updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        example: "Basement Sensor"
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/devices/{deviceId}/signal:
+    get:
+      summary: Query Device Proxy Information
+      description: |
+        Query the signal strength information between a sensor and its proxy gateway.
+        
+        **Required Permissions**: `device.read`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset.
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: deviceId
+          in: path
+          required: true
+          description: The device ID of the sensor or gateway.
+          schema:
+            type: string
+            example: "1234567890AB"
+      responses:
+        '200':
+          description: Successfully retrieved device proxy information.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        gatewayId:
+                          type: string
+                          description: The device ID of the proxy gateway.
+                          example: "HUB_DEVICE_ID_123"
+                        signal:
+                          type: number
+                          description: Signal strength, ranging from 0 (weak) to 100 (strong).
+                          example: 95
+                        deviceInfo:
+                          type: object
+                          description: The device information object of the proxy gateway.
+                          properties:
+                            id:
+                              type: string
+                              example: "HUB_DEVICE_ID_123"
+                            model:
+                              type: string
+                              example: "H5-LITE"
+                            name:
+                              type: string
+                              example: "Wi-Fi Hub"
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/devices/{deviceId}/history:
+    get:
+      summary: Query Device Measurement History
+      description: |
+        Query the historical sensor data for a specific device over a period of time.
+        
+        **Required Permissions**: `device.read`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset.
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: deviceId
+          in: path
+          required: true
+          description: The ID of the device.
+          schema:
+            type: string
+            example: "1234567890AB"
+        - name: from
+          in: query
+          required: true
+          description: Required. The start time as a Unix timestamp in milliseconds. E.g., 1711031478155
+          schema:
+            type: number
+            example: 1675209600000
+        - name: to
+          in: query
+          required: true
+          description: Required. The end time as a Unix timestamp in milliseconds. E.g., 1711517878157
+          schema:
+            type: number
+            example: 1675209600000
+        - name: tz
+          in: query
+          required: true
+          description: Required. IANA time zone identifier (e.g., Asia/Shanghai, America/New_York). E.g., Asia/Shanghai
+          schema:
+            type: string
+            example: "Asia/Shanghai"
+        - name: field
+          in: query
+          required: true
+          description: "Required. The measurement field to query. Valid values: temperature, humidity, water_leak, water_level, frozen. E.g., temperature"
+          schema:
+            type: string
+            enum: [temperature, humidity, water_leak, water_level, frozen]
+            example: "temperature"
+        - name: windowDuration
+          in: query
+          required: false
+          description: (Optional) Aggregation window. Format is number+unit (e.g., 1m, 30m, 1h, 1d, 1mo). If provided, aggregated data will be returned. E.g., 1d
+          schema:
+            type: string
+            pattern: '^\d+[mhd]|^\d+mo$'
+            example: "1d"
+        - name: aggregationsType
+          in: query
+          required: false
+          description: "(Optional) Aggregation functions, separated by commas. Valid values: mean, max, min. Only effective when windowDuration is present. E.g., max,min,mean"
+          schema:
+            type: string
+            pattern: '^(mean|max|min)(,(mean|max|min))*$'
+            example: "max,min,mean"
+        - name: limit
+          in: query
+          required: false
+          description: "(Optional) The maximum number of data points to return. Range: 1-10000. Applicable for event-based data like water_leak_state. Mutually exclusive with aggregation parameters."
+          schema:
+            type: number
+            minimum: 1
+            maximum: 10000
+            example: 1000
+      responses:
+        '200':
+          description: Successfully retrieved device history data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            time:
+                              type: number
+                              description: Timestamp
+                              example: 1672531200000
+                            value:
+                              type: number
+                              description: Measured value
+                              example: 25.5
+                            deviceId:
+                              type: string
+                              description: Device ID
+                              example: "AB1234567890"
+                            field:
+                              type: string
+                              description: Measurement field
+                              example: "temperature"
+                            unit:
+                              type: string
+                              description: Unit
+                              example: "℃"
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assets/{assetId}/devices/{deviceId}/history/export:
+    get:
+      summary: Export Data to Email
+      description: |
+        Export the historical data of a device as a CSV file and send a download link to the specified email address.
+        
+        **Required Permissions**: `device.read`
+      tags:
+        - Devices
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          description: The ID of the asset.
+          schema:
+            type: string
+            example: "64af9199134bf5aa7bf18bbd"
+        - name: deviceId
+          in: path
+          required: true
+          description: The ID of the device.
+          schema:
+            type: string
+            example: "1234567890AB"
+        - name: email
+          in: query
+          required: true
+          description: Required. The email address to receive the download link. E.g., recipient@example.com
+          schema:
+            type: string
+            format: email
+            example: "recipient@example.com"
+        - name: from
+          in: query
+          required: true
+          description: Required. The start time as a Unix timestamp in milliseconds. E.g., 1711031478155
+          schema:
+            type: number
+            example: 1672531200000
+        - name: to
+          in: query
+          required: true
+          description: Required. The end time as a Unix timestamp in milliseconds. E.g., 1711517878157
+          schema:
+            type: number
+            example: 1675209600000
+        - name: tz
+          in: query
+          required: true
+          description: Required. IANA time zone identifier. E.g., Asia/Shanghai
+          schema:
+            type: string
+            example: "Asia/Shanghai"
+        - name: fields
+          in: query
+          required: true
+          description: "Required. The measurement fields to export, separated by commas. Valid values: temperature, humidity, water_leak, water_level, frozen. E.g., temperature,humidity"
+          schema:
+            type: string
+            pattern: '^(temperature|humidity|water_leak|water_level|frozen)(,(temperature|humidity|water_leak|water_level|frozen))*$'
+            example: "temperature,humidity"
+        - name: windowDuration
+          in: query
+          required: false
+          description: (Optional) Aggregation window. Format is number+unit (e.g., 1m, 30m, 1h, 1d, 1mo). E.g., 30d
+          schema:
+            type: string
+            pattern: '^\d+[mhd]|^\d+mo$'
+            example: "30d"
+        - name: aggregationsType
+          in: query
+          required: false
+          description: "(Optional) Aggregation functions, separated by commas. Valid values: mean, max, min. E.g., max,min,mean"
+          schema:
+            type: string
+            pattern: '^(mean|max|min)(,(mean|max|min))*$'
+            example: "max,min,mean"
+      responses:
+        '200':
+          description: Data export request successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: string
+                    description: Direct download link
+                    example: "https://s3.amazonaws.com/your-bucket/path/to/file.csv?AWSAccessKeyId=..."
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API Key authentication for server-to-server calls and third-party integrations.
+
+        API Key Format: `mok_<prefix>_<secret>`
+
+        Usage:
+        1. Add `X-API-Key: mok_<prefix>_<secret>` to the request header.
+        2. The API Key is automatically associated with the corresponding asset.
+        3. Access is restricted to resources under that asset.
+
+        **Important Note**:
+        The `Secret` part is only displayed once upon creation. You must copy it immediately and store it securely in your application or a password manager. **MOCREO does not store your Secret in plaintext**, so if it is lost, it cannot be recovered. You will have to delete the old key and create a new one.
+    
+    bearerAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: |
+        Bearer Token authentication for user session management.
+        
+        Usage:
+        1. Add `Authorization: Bearer <token>` to the request header.
+        2. Token is obtained through login endpoints.
+        3. Token has limited validity and can be renewed through refresh token endpoints.
+
+  parameters:
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email
+          example: "user@example.com"
+        password:
+          type: string
+          description: User password
+          example: "password123"
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        result:
+          type: object
+          properties:
+            token:
+              type: string
+              description: JWT access token
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            refreshToken:
+              type: string
+              description: Refresh token
+              example: "refresh_token_example"
+            user:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "user_123"
+                email:
+                  type: string
+                  example: "user@example.com"
+        messages:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        result:
+          type: object
+          properties:
+            token:
+              type: string
+              description: New JWT access token
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        messages:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    ApiKeyRequest:
+      type: object
+      required:
+        - displayName
+        - permissions
+      properties:
+        displayName:
+          type: string
+          description: Display name for the API Key
+          example: "My Automation Server"
+        permissions:
+          type: array
+          items:
+            type: string
+            enum: [asset.read, asset.update, device.read, device.update, membership.read, membership.update, membership.delete]
+          description: List of permissions
+          example: ["device.read", "device.update"]
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Expiration time in ISO 8601 format, null means never expires
+          example: "2026-12-31T23:59:59.000Z"
+
+    ApiKeyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        result:
+          type: object
+          properties:
+            key:
+              type: string
+              description: Complete API Key (only shown during creation)
+              example: "mok_a1b2c3d4_xYz123wUVabcDEF..."
+            message:
+              type: string
+              example: "This is the only time you will see the full API Key. Please save it securely."
+            id:
+              type: string
+              description: API Key ID
+              example: "65a123b4cde567f890a123b4"
+            displayName:
+              type: string
+              example: "My Automation Server"
+            prefix:
+              type: string
+              description: API Key prefix
+              example: "a1b2c3d4"
+            assetId:
+              type: string
+              example: "64af9199134bf5aa7bf18bbd"
+            permissions:
+              type: array
+              items:
+                type: string
+              example: ["device.read", "device.update"]
+            expiresAt:
+              type: string
+              format: date-time
+              nullable: true
+              example: "2026-12-31T23:59:59.000Z"
+        messages:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    ApiKeyInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          description: API Key ID
+          example: "65a123b4cde567f890a123b4"
+        displayName:
+          type: string
+          example: "My Automation Server"
+        prefix:
+          type: string
+          description: API Key prefix
+          example: "a1b2c3d4"
+        assetId:
+          type: string
+          example: "64af9199134bf5aa7bf18bbd"
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["device.read", "device.update"]
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last used time
+          example: "2025-08-20T10:30:00.000Z"
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-12-31T23:59:59.000Z"
+
+    ApiKeyListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiKeyInfo'
+        messages:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    Asset:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The ID of the asset.
+          example: "64af9199134bf5aa7bf18bbd"
+        displayName:
+          type: string
+          description: The display name of the asset.
+          example: "My Home"
+        inventory:
+          type: boolean
+          description: Whether this is the default asset.
+          example: true
+        tenantId:
+          type: string
+          description: The ID of the tenant it belongs to.
+          example: "64b8ebcbd25791610115a5af"
+        owner:
+          type: string
+          description: The ID of the asset owner.
+          example: "user-id-xxxx"
+        ownerEmail:
+          type: string
+          format: email
+          description: The email of the asset owner.
+          example: "user@example.com"
+        config:
+          type: object
+          description: Asset configuration.
+          properties:
+            tz:
+              type: string
+              description: Time zone.
+              example: "Asia/Shanghai"
+            units:
+              type: object
+              description: Unit configuration.
+              properties:
+                temperature:
+                  type: string
+                  example: "℃"
+                humidity:
+                  type: string
+                  example: "%"
+            location:
+              type: object
+              description: Geographical location.
+              properties:
+                latitude:
+                  type: number
+                  example: 39.9042
+                longitude:
+                  type: number
+                  example: 116.4074
+        deviceCount:
+          type: number
+          description: The number of devices.
+          example: 5
+        updatedAt:
+          type: number
+          description: The timestamp of the last update.
+          example: 1640995200000
+
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The ID of the device.
+          example: "AB1234567890"
+        assetId:
+          type: string
+          description: The ID of the asset it belongs to.
+          example: "64af9199134bf5aa7bf18bbd"
+        type:
+          type: string
+          description: The type of the device.
+          enum: [HUB, NODE]
+          example: "NODE"
+        model:
+          type: string
+          description: The model of the device.
+          example: "ST6"
+        name:
+          type: string
+          description: The name of the device.
+          example: "Climate Sensor"
+        attributes:
+          type: object
+          description: Device attributes.
+          properties:
+            labels:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                  example: "Living Room Thermometer"
+                roomId:
+                  type: string
+                  example: "room_001"
+                alarm:
+                  type: boolean
+                  example: false
+            online:
+              type: boolean
+              description: Online status.
+              example: true
+            lastOnline:
+              type: number
+              description: Timestamp of the last online time.
+              example: 1675209600
+        properties:
+          type: object
+          description: Device property data.
+          properties:
+            temperature:
+              type: number
+              example: 25.5
+            humidity:
+              type: number
+              example: 60.1
+            battery_percentage:
+              type: number
+              example: 98
+        updatedAt:
+          type: number
+          description: The timestamp of the last update.
+          example: 1640995200000
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        result:
+          type: string
+          nullable: true
+          example: null
+        messages:
+          type: array
+          description: List of messages.
+          items:
+            type: string
+          example: []
+        errors:
+          type: array
+          description: List of error details.
+          items:
+            type: object
+            properties:
+              message:
+                type: string
+                description: The error message.
+                example: "Descriptive error message."
+              code:
+                type: integer
+                description: |
+                  Error code indicating the specific error type:
+                  - 400: Bad Request - Invalid request parameters.
+                  - 401: Unauthorized - Invalid or missing API Key.
+                  - 403: Forbidden - Insufficient permissions.
+                  - 404: Not Found - The resource does not exist.
+                  - 429: Too Many Requests - The request exceeds the rate limit.
+                  - 500: Internal Server Error - An internal server error occurred.
+                enum: [400, 401, 403, 404, 429, 500]
+          example:
+            - message: "Descriptive error message."
+              code: 401
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "Invalid request parameters"
+                code: 400
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "Authentication required"
+                code: 401
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "Insufficient permissions"
+                code: 403
+
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "Resource not found"
+                code: 404
+
+    TooManyRequests:
+      description: Too Many Requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "You have exceeded the rate limit"
+                code: 429
+
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            result: null
+            messages: []
+            errors:
+              - message: "Internal server error"
+                code: 500
+
+tags:
+  - name: Users
+    description: Endpoints related to user authentication
+  - name: API Keys
+    description: Endpoints related to API Key management
+  - name: Assets
+    description: Endpoints related to asset management
+  - name: Devices
+    description: Endpoints related to device management
+

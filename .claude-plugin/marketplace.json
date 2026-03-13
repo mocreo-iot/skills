@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "pluginRoot": ".",
+    "packageName": "mocreo-skills",
+    "version": "1.0.0",
+    "description": "MOCREO API toolkit for AI agents. Interact with MOCREO IoT sensors and smart devices via natural language.",
+    "repository": "mocreo-iot/skills",
+    "author": "MOCREO",
+    "license": "MIT"
+  },
+  "plugins": [
+    {
+      "name": "mocreo-api",
+      "source": ".",
+      "skills": [
+        "./mocreo-sensor-system",
+        "./mocreo-smart-system"
+      ]
+    }
+  ]
+}

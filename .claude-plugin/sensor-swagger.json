@@ -1,0 +1,1074 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "- This document is the interface that Mocreo Sensor exposes to developers.\n- We are more than glad that you may try our demo account:\n- User Account: demo@mocreo.com\n- Password: password\n- Register at https://portal.mocreo.com.\n- If you have any questions, please contact us at contact@mocreo.com and we will get back to you asap.",
+    "version": "2.0.0",
+    "title": "Mocreo Sensor API"
+  },
+  "host": "api.sync-sign.com",
+  "basePath": "/v2",  
+  "tags": [
+    {
+      "name": "token"
+    },
+    {
+      "name": "user"
+    },
+    {
+      "name": "device"
+    },
+    {
+      "name": "node"
+    },
+    {
+      "name": "samples"
+    },
+    {
+      "name": "alerts"
+    }
+  ],
+  "schemes": [
+    "https"
+  ],
+  "paths": {
+    "/oauth/token": {
+      "post": {
+        "tags": [
+          "token"
+        ],
+        "operationId": "post_oauth_token",
+        "description": "To get a token. This header value grants access to data resources.",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "UserInfo",
+            "required": true,
+            "description": "Log in using a valid email/password to recieve an authorization code.",
+            "schema": {
+              "$ref": "#/definitions/PostTokenBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/TokenResponse"
+            }
+          },
+          "400": {
+            "description": "400 response",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/oauth/token/refresh": {
+      "post": {
+        "tags": [
+          "token"
+        ],
+        "operationId": "post_oauth_refresh_token",
+        "description": "replace token.",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "UserInfo",
+            "required": true,
+            "description": "When the token needs to be replaced, use refreshToken to obtain the latest token",
+            "schema": {
+              "$ref": "#/definitions/PostRefreshTokenBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/TokenResponse"
+            }
+          },
+          "400": {
+            "description": "400 response",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/user": {
+      "get": {
+        "tags": [
+          "user"
+        ],
+        "operationId": "get_user",
+        "description": "Get user information.",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "You can get the token of the User by calling the API that  \"/oauth/token\"\nexample: Bearer {{accessToken}}"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          }
+        },
+        "security": [
+          {
+            "syncsign_auth2": []
+          }
+        ]
+      }
+    },
+    "/devices": {
+      "get": {
+        "tags": [
+          "device"
+        ],
+        "operationId": "get_devices",
+        "description": "Get the list of devices through Authorization.",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "You can get the token of the User by calling the API that  \"/oauth/token\"\nexample: Bearer {{accessToken}}"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/ArrayOfUserDevice"
+            }
+          }
+        },
+        "security": [
+          {
+            "syncsign_auth2": []
+          }
+        ]
+      }
+    },
+    "/devices/{sn}": {
+      "get": {
+        "tags": [
+          "device"
+        ],
+        "operationId": "get_device",
+        "description": "Get Hub details through Authorization and SN.",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "You can get the token of the User by calling the API that  \"/oauth/token\"\nexample: Bearer {{accessToken}}"
+          },
+          {
+            "name": "sn",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "You can get the serial number of the Hub by calling the API that  \"/devices\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/Device"
+            }
+          }
+        },
+        "security": [
+          {
+            "syncsign_auth2": []
+          }
+        ]
+      }
+    },
+    "/nodes": {
+      "get": {
+        "tags": [
+          "node"
+        ],
+        "operationId": "get_nodes",
+        "description": "Get all Node related to the user.",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "You can get the token of the User by calling the API that  \"/oauth/token\"\nexample: Bearer {{accessToken}}"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/ArrayOfNode"
+            }
+          }
+        },
+        "security": [
+          {
+            "syncsign_auth2": []
+          }
+        ]
+      }
+    },
+    "/nodes/{node_id}": {
+      "get": {
+        "tags": [
+          "node"
+        ],
+        "operationId": "get_node",
+        "description": "Get details of a Node related to the user",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "You can get the token of the User by calling the API that  \"/oauth/token\"\nexample: Bearer {{accessToken}}"
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "You can get the id of the Node by calling the API that  \"/nodes\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/Node"
+            }
+          }
+        },
+        "security": [
+          {
+            "syncsign_auth2": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "node"
+        ],
+        "operationId": "put_node",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "You can get the token of the User by calling the API that  \"/oauth/token\"\nexample: Bearer {{accessToken}}"
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "You can get the Node id by calling the API that  \"/nodes\""
+          },
+          {
+            "in": "body",
+            "name": "Node",
+            "required": true,
+            "description": "The info field is an example of the ClimateSensor. Different Sensors correspond to the specific content in the Model at the footer\nDoorSensor / WaterLeakSensor",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "info": {
+                  "$ref": "#/definitions/ClimateSensor"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/Response"
+            }
+          }
+        },
+        "security": [
+          {
+            "syncsign_auth2": []
+          }
+        ]
+      }
+    },
+    "/nodes/{node_id}/samples": {
+      "get": {
+        "tags": [
+          "samples"
+        ],
+        "operationId": "get_node_samples",
+        "description": "Obtain all the samples of this node",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "You can get the token of the User by calling the API that  \"/oauth/token\"\nexample: Bearer {{accessToken}}"
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "You can get the id of the Node by calling the API that  \"/nodes\""
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "number",
+            "required": true,
+            "description": "The data amount of each query"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "type": "number",
+            "description": "offset means this amount of rows were skipped before inquiring:\npageSize * (pageIndex - 1)"
+          },
+          {
+            "name": "beginTime",
+            "in": "query",
+            "type": "number",
+            "description": "Begin time(s)"
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "type": "number",
+            "description": "End time(s)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The data value is 'o': The returned value when the occupancy sensor is queried. True as Occupied, false as Vacant\ndata is 's': The returned value when the water leak detector/door sensor is queried. True as Leaking/opened, false means Dry /Closed \ndata value is 'tm': When the climate sensor is queried, it represents the temperature (Actual temperature = data/100, unit is (℃))\ndata value is 'hm': When the climate sensor is queried, it represents the humidity (Actual humidity = data/100, unit is %)",
+            "schema": {
+              "$ref": "#/definitions/ArrayOfRecord"
+            }
+          }
+        },
+        "security": [
+          {
+            "syncsign_auth2": []
+          }
+        ]
+      }
+    },
+    "/nodes/{node_id}/samples/delete_all": {
+      "delete": {
+        "tags": [
+          "samples"
+        ],
+        "operationId": "delete_node_samples",
+        "description": "Delete all the samples of this node",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "You can get the token of the User by calling the API that  \"/oauth/token\"\nexample: Bearer {{accessToken}}"
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "You can get the id of the Node by calling the API that  \"/nodes\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/Response"
+            }
+          }
+        },
+        "security": [
+          {
+            "syncsign_auth2": []
+          }
+        ]
+      }
+    },
+    "/alerts": {
+      "get": {
+        "tags": [
+          "alerts"
+        ],
+        "operationId": "get_alerts",
+        "description": "Get all Alerts related to the user",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "You can get the token of the User by calling the API that  \"/oauth/token\"\nexample: Bearer {{accessToken}}"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": true,
+            "type": "number",
+            "description": "The data amount of each query"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "type": "number",
+            "description": "offset means this amount of rows were skipped before inquiring:\npageSize * (pageIndex - 1)"
+          },
+          {
+            "name": "dismissed",
+            "in": "query",
+            "type": "boolean",
+            "description": "In default, all alerts will be collected. True/false corresponds to dismiss and checked alerts."
+          },
+          {
+            "name": "beginTime",
+            "in": "query",
+            "type": "number",
+            "description": "Begin time (s)"
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "type": "number",
+            "description": "End time (s)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/ArrayOfAlert"
+            }
+          }
+        },
+        "security": [
+          {
+            "syncsign_auth2": []
+          }
+        ]
+      }
+    },
+    "/alerts/dismiss_all": {
+      "put": {
+        "tags": [
+          "alerts"
+        ],
+        "operationId": "put_dismiss_all_alerts",
+        "description": "Dismiss all Alerts related to the user",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "You can get the token of the User by calling the API that  \"/oauth/token\"\nexample: Bearer {{accessToken}}"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/Response"
+            }
+          }
+        },
+        "security": [
+          {
+            "syncsign_auth2": []
+          }
+        ]
+      }
+    },
+    "/alerts/delete_all": {
+      "delete": {
+        "tags": [
+          "alerts"
+        ],
+        "operationId": "put_delete_all_alerts",
+        "description": "Delete all Alerts related to the user",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "You can get the token of the User by calling the API that  \"/oauth/token\"\nexample: Bearer {{accessToken}}"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/Response"
+            }
+          }
+        },
+        "security": [
+          {
+            "syncsign_auth2": []
+          }
+        ]
+      }
+    }
+  },
+  "securityDefinitions": {
+    "syncsign_auth2": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "x-amazon-apigateway-authtype": "custom",
+      "x-amazon-apigateway-authorizer": {
+        "type": "request",
+        "authorizerUri": "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/arn:aws:lambda:us-west-2:303785319641:function:syncDisplayAuth/invocations",
+        "authorizerResultTtlInSeconds": 300,
+        "identitySource": "context.identity.sourceIp, context.path, method.request.header.Authorization"
+      }
+    }
+  },
+  "definitions": {
+    "ClimateSensor": {
+      "type": "object",
+      "properties": {
+        "humidity": {
+          "type": "object",
+          "properties": {
+            "calibration": {
+              "type": "number",
+              "description": "Calibrated gap, 0 in default."
+            },
+            "delayBeforeAlert": {
+              "type": "number",
+              "description": "Time-delayed (s)"
+            },
+            "enableAlert": {
+              "type": "boolean",
+              "description": "If the notification was enable."
+            },
+            "max": {
+              "type": "number",
+              "description": "Humidity max threshold for alert, The value of (value * 100)"
+            },
+            "min": {
+              "type": "number",
+              "description": "Humidity min threshold for alert, The value of (value * 100)"
+            }
+          }
+        },
+        "temperature": {
+          "type": "object",
+          "properties": {
+            "calibration": {
+              "type": "number",
+              "description": "Calibrated gap, 0 in default"
+            },
+            "delayBeforeAlert": {
+              "type": "number",
+              "description": "Time-delayed (s)"
+            },
+            "enableAlert": {
+              "type": "boolean",
+              "description": "If the notification was enable"
+            },
+            "max": {
+              "type": "number",
+              "description": "Temperature max threshold for alert, The value of (value * 100), unit is (℃)"
+            },
+            "min": {
+              "type": "number",
+              "description": "Temperature min threshold for alert, The value of (value * 100), unit is (℃)"
+            }
+          }
+        }
+      }
+    },
+    "DoorSensor": {
+      "type": "object",
+      "properties": {
+        "door_win": {
+          "type": "object",
+          "properties": {
+            "alertWhenStateBecomes": {
+              "type": "boolean",
+              "description": "If the notification was enable"
+            },
+            "enableAlert": {
+              "type": "boolean",
+              "description": "true: notifys when closed, false: notifys when opened"
+            }
+          }
+        }
+      }
+    },
+    "WaterLeakSensor": {
+      "type": "object",
+      "properties": {
+        "water_leak": {
+          "type": "object",
+          "properties": {
+            "alertWhenStateBecomes": {
+              "type": "boolean",
+              "description": "If the notification was enabled."
+            },
+            "enableAlert": {
+              "type": "boolean",
+              "description": "true: notifys when closed, false: notifys when opened"
+            }
+          }
+        }
+      }
+    },
+    "User": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "phoneNumber": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "nickname": {
+          "type": "string"
+        },
+        "logoInfo": {
+          "type": "object"
+        },
+        "defaultTemplates": {
+          "type": "object"
+        },
+        "devicesLastModified": {
+          "type": "number"
+        },
+        "calendarsLastModified": {
+          "type": "number"
+        }
+      }
+    },
+    "ArrayOfNode": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Node"
+      }
+    },
+    "Device": {
+      "type": "object",
+      "required": [
+        "thingName"
+      ],
+      "properties": {
+        "thingName": {
+          "type": "string",
+          "description": "Hub SN"
+        },
+        "region": {
+          "type": "string",
+          "enum": [
+            "us-west-2"
+          ]
+        },
+        "thingType": {
+          "type": "string"
+        },
+        "friendlyName": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "Node": {
+      "type": "object",
+      "required": [
+        "nodeId",
+        "thingName",
+        "type"
+      ],
+      "properties": {
+        "nodeId": {
+          "type": "string",
+          "description": "Node ID"
+        },
+        "thingName": {
+          "type": "string",
+          "description": "Hub SN"
+        },
+        "type": {
+          "type": "string",
+          "description": "Node type"
+        },
+        "model": {
+          "type": "string",
+          "description": "Node size"
+        },
+        "associated": {
+          "type": "boolean",
+          "description": "Pairing status"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name"
+        },
+        "onlined": {
+          "type": "boolean",
+          "description": "Online status"
+        },
+        "signalLevel": {
+          "type": "number",
+          "description": "Signal"
+        },
+        "batteryLevel": {
+          "type": "number",
+          "description": "Battery level"
+        },
+        "info": {
+          "type": "object"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Paired at"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "UserDevice": {
+      "type": "object",
+      "properties": {
+        "thingName": {
+          "type": "string",
+          "description": "Hub SN"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "bind",
+            "unbind"
+          ]
+        },
+        "sn": {
+          "type": "string"
+        },
+        "info": {
+          "type": "object",
+          "properties": {
+            "thingName": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string"
+            },
+            "thingType": {
+              "type": "string"
+            },
+            "friendlyName": {
+              "type": "string"
+            },
+            "createdAt": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "string"
+            }
+          }
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        }
+      }
+    },
+    "ArrayOfUserDevice": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/UserDevice"
+      }
+    },
+    "Record": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "number"
+        },
+        "expires": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "tm": {
+              "type": "number",
+              "description": "The returned value when the climate sensor is queried, it represents the temperature (Actual temperature = data/100, unit is (℃))"
+            },
+            "hu": {
+              "type": "number",
+              "description": "The returned value when the climate sensor is queried, it represents the humidity (Actual humidity = data/100, unit is %)"
+            }
+          }
+        }
+      }
+    },
+    "ArrayOfRecord": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Record"
+      }
+    },
+    "ArrayOfAlert": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Alert"
+          }
+        }
+      }
+    },
+    "Alert": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Alert ID"
+        },
+        "info": {
+          "type": "object"
+        },
+        "thingName": {
+          "type": "string",
+          "description": "Hub SN"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "nodeId": {
+          "type": "string",
+          "description": "Node ID"
+        },
+        "time": {
+          "type": "number",
+          "description": "Time takes on generating the data."
+        },
+        "dismissed": {
+          "type": "boolean",
+          "description": "If dismissed"
+        }
+      }
+    },
+    "PostTokenBody": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string",
+          "enum": [
+            "mocreo",
+            "mrd"
+          ],
+          "description": "Select the corresponding provider according to the product, Mocreo: mocreo, Syncsign: mrd"
+        }
+      }
+    },
+    "PostRefreshTokenBody": {
+      "type": "object",
+      "properties": {
+        "refreshToken": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string",
+          "enum": [
+            "mocreo",
+            "mrd"
+          ],
+          "description": "Select the corresponding provider according to the product, Mocreo: mocreo, Syncsign: mrd"
+        }
+      }
+    },
+    "TokenResponse": {
+      "type": "object",
+      "properties": {
+        "accessToken": {
+          "type": "string",
+          "description": "Add Authorization on the Request Headers of the API, as the authentication after logged in. Valid for 24 hours\n for example: Bearer 2159e56cffabf09ff4c0a0ff196009e5e9ebdd38"
+        },
+        "accessTokenExpiresAt": {
+          "type": "number",
+          "description": "accessToken time (s), login status will be invalid after expiration"
+        },
+        "refreshToken": {
+          "type": "string",
+          "description": "Token for refreshing, valid for 3 months"
+        },
+        "refreshTokenExpiresAt": {
+          "description": "refreshToken time (s), refreshToken will be invalid after expired",
+          "type": "number"
+        }
+      }
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "name": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "Response": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32",
+          "enum": [
+            200
+          ]
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "reuslt": {
+              "type": "boolean"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

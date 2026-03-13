@@ -3,9 +3,13 @@ import argparse
 import json
 import sys
 import os
-from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from common.mocreo_auth import add_shared_auth_args, build_credentials_from_args
 
 def login(email, password):
     if not email or not password:
@@ -30,7 +34,12 @@ def login(email, password):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--email", default=os.getenv("MOCREO_V3_EMAIL"))
-    parser.add_argument("--password", default=os.getenv("MOCREO_V3_PASS"))
+    add_shared_auth_args(parser, "Platform for shared credential bootstrap")
+    parser.add_argument("--email", default=None, help="Backward-compatible alias for --user")
     args = parser.parse_args()
-    login(args.email, args.password)
+
+    if args.email and not args.user:
+        args.user = args.email
+
+    creds = build_credentials_from_args(args, fallback_platform="smart")
+    login(creds["user"], creds["password"])

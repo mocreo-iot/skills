@@ -12,7 +12,6 @@ def main():
 
     url = f"{BASE_URL}/oauth/token/refresh"
     payload = {
-        "grant_type": "refresh_token",
         "refreshToken": args.refresh_token,
         "provider": "mocreo"
     }

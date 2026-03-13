@@ -20,10 +20,16 @@ pip install -r requirements.txt
 Try `pip3` or `python -m pip install requests python-dotenv` if that fails. Never ask the user to install packages.
 
 **Credentials**:
-1. Check if `.env` exists at the repo root (`../../.env` relative to `scripts/`).
-2. If missing: tell the user their credentials will be saved locally, ask for email and password (and optionally API key). Then create `.env` yourself using your file-writing tool. Use variables `MOCREO_V3_EMAIL`, `MOCREO_V3_PASS`, and `MOCREO_V3_API_KEY`.
-3. Never guess credentials. Never ask for them again in chat once saved.
-4. If login returns 401: tell the user their credentials look wrong and ask them to update `.env` directly — do not ask them to type the password in chat.
+1. Use the shared credential bootstrap at `../../scripts/bootstrap_credentials.py` on first setup, or let `scripts/v3_login.py` trigger the same terminal prompts when shared credentials are missing.
+2. The bootstrap identifies the platform by guided questions about the app, hub model, or sensor family. It uses this mapping:
+   - `MOCREO Smart App` = `MOCREO Smart System` = `MOCREO V3`
+   - V3 hubs: `H3`, `H5-Lite`, `H5-Pro`, `H6-Lite`, `H6-Pro`
+   - V3-only sensors: `MS2`, `LS1`, `LS2`, `LS3`, `LW1`, `LD1`, `LB1`, `NS1`, `NS2`, `NS3`
+   - Shared sensors needing a follow-up question: `ST5`, `ST6`, `ST8`, `ST9`, `ST10`, `MS1`, `SW2`
+3. Store credentials in the repo-root `.env` using `MOCREO_USER`, `MOCREO_PASS`, `MOCREO_PLATFORM`, and optionally `MOCREO_V3_API_KEY`.
+4. Password entry must happen in the terminal with hidden input. Never ask the user to type a password in chat or manually edit `.env` unless they explicitly want to.
+5. Treat `MOCREO_PLATFORM=smart` as the default routing hint for Smart System requests.
+6. If login returns 401: tell the user their credentials look wrong and ask them to re-run the bootstrap or update `.env` directly.
 
 **Token lifecycle**:
 1. After login, save both `access_token` and `refresh_token` from the JSON output.
@@ -52,43 +58,92 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
 
 1. **Atomic Operations First**: All tasks must use the existing 15 scripts. Do not write new scripts.
 2. **Standard Flow**:
-   - Login → get token
+   - Login -> get token
    - List assets (`v3_list_assets.py`) to find Asset ID
    - List devices (`v3_list_devices.py`) under that asset to find Device ID
    - Execute specific operations using those IDs
 3. **Authentication Modes**:
-   - Management scripts (user, API keys, asset list) require a Bearer Token.
-   - Business scripts (asset/device/history) accept either `--auth <TOKEN>` or `--auth <API_KEY> --apikey`.
+   - Management scripts (user login, refresh, asset list, API key create/list/delete) require a Bearer Token.
+   - Public asset/device business APIs are documented as `X-API-Key` APIs. In this skill, those scripts accept either `--auth <TOKEN>` or `--auth <API_KEY> --apikey`.
+   - Prefer Bearer Token for account-scoped management flows. Prefer API Key for asset-scoped automation flows.
+4. **Mutating Operations Policy**:
+   - Treat `v3_create_apikey.py`, `v3_delete_apikey.py`, `v3_update_asset.py`, `v3_update_asset_config.py`, `v3_update_device_name.py`, and `v3_export_device_history.py` as side-effecting operations.
+   - Before changing anything, first read the current state with `v3_get_asset_details.py`, `v3_list_devices.py`, or `v3_get_device_details.py`.
+   - After every successful change, read the resource again or report the returned value so the user can see the final state.
+   - For testing or temporary operations, restore the original value in the same session whenever practical.
+5. **Asset Config Guardrails**:
+   - Only send fields the user explicitly asked to change.
+   - Prefer small partial payloads instead of resubmitting the whole config object.
+   - The public OpenAPI currently documents `city` as the canonical example field for `v3_update_asset_config.py`.
+   - Safe default fields are `city`, and only other minimal fields already proven to work in practice such as `tz`, `country`, and `state`.
+   - Do not send `timeFormat` by default. The API may reject it.
+   - Do not resend the full `config` block unless absolutely necessary.
+   - Prefer `v3_update_asset_config.py --safe` unless the user clearly needs a broader payload.
+6. **API Key Safety Rules**:
+   - Only create an API key when the user explicitly asks for one or when a temporary test requires it.
+   - Use the narrowest permissions possible. Prefer `device.read` unless the user clearly needs write access.
+   - Relevant documented permissions include `asset.read`, `asset.update`, `device.read`, and `device.update`.
+   - The full API key is only returned once. If you create one for immediate use, capture it from the create response and use it right away.
+   - By default, API key creation and deletion should rely on terminal confirmation prompts for high-risk decisions.
+   - If no default `MOCREO_V3_API_KEY` exists, `v3_create_apikey.py` may ask whether to save the new key as the default in `.env`.
+   - If a default key already exists, `v3_create_apikey.py` may ask whether to replace the existing `MOCREO_V3_API_KEY` with the new asset-bound key.
+   - Do not overwrite `MOCREO_V3_API_KEY` silently. Only persist it after clear user confirmation, because API keys are asset-bound.
+   - `v3_delete_apikey.py` may detect that the target prefix matches the current default `MOCREO_V3_API_KEY` and ask for an extra confirmation before deleting it.
+   - If the deleted key was the current default, the delete flow may also ask whether `.env` should be cleared.
+   - Temporary test keys must be deleted in the same session with `v3_delete_apikey.py`.
+   - API keys are asset-bound and cannot be reused across assets.
+   - Respect documented rate limits for API-key traffic: at most 1000 requests per hour and at most 3 concurrent requests per key.
+7. **Signal and Export Interpretation**:
+   - `v3_get_device_signal.py` may return `success=true` with `result=null`; do not treat that alone as a script failure.
+   - If signal data is needed, prefer LoRa or hub-connected devices such as `LS1` over Wi-Fi-only devices.
+   - `v3_export_device_history.py` triggers a real export action. Use it only when the user explicitly asks to export or email data.
+   - The public API documents export as sending a download link to the specified email. When export succeeds, report the returned download URL and mention the destination email used.
+8. **Default Selection Strategy**:
+   - If the user does not specify an asset, list assets first and select the most relevant owned asset based on the request.
+   - If the user does not specify a device, list devices under the chosen asset and match by display name, model, or device type.
+   - Do not guess a destructive target. If multiple assets or devices are plausible for a mutating request, ask a short clarifying question.
+9. **History Query Rules**:
+   - For `v3_get_device_history.py`, always provide `from`, `to`, `tz`, and `field`.
+   - Valid `field` values are `temperature`, `humidity`, `water_leak`, `water_level`, and `frozen`.
+   - Optional `windowDuration` values use compact duration strings such as `1m`, `30m`, `1h`, `1d`, or `1mo`.
+   - Optional `aggregationsType` values are comma-separated combinations of `mean`, `max`, and `min`, and only make sense when `windowDuration` is provided.
+   - `limit` is only for constrained result sets and should stay within `1-10000`.
+   - Do not combine `limit` with aggregation parameters unless the API behavior is clearly documented for that combination.
+10. **Export Query Rules**:
+   - For `v3_export_device_history.py`, always provide `email`, `from`, `to`, `tz`, and `fields`.
+   - Valid `fields` values are comma-separated combinations of `temperature`, `humidity`, `water_leak`, `water_level`, and `frozen`.
+   - Optional export aggregation uses the same `windowDuration` and `aggregationsType` rules as history queries.
+   - Use the user's explicitly requested email when provided; otherwise use the confirmed default email for the current account.
 
 ## Atomic Scripts (15)
 
 ### User & Auth (2)
-- `v3_login.py`: `--email` `--password` → full JSON (access_token + refresh_token)
-- `v3_refresh_token.py`: `--token` `--refresh_token` → new token JSON
+- `v3_login.py`: `--email` `--password` -> full JSON (access_token + refresh_token)
+- `v3_refresh_token.py`: `--token` `--refresh_token` -> new token JSON
 
 ### API Keys (3)
-- `v3_create_apikey.py`: `--token` `--asset_id` `--name` `--permissions` → new key info
-- `v3_list_apikeys.py`: `--token` `--asset_id` → all API keys
-- `v3_delete_apikey.py`: `--token` `--asset_id` `--prefix` → delete key by prefix
+- `v3_create_apikey.py`: `--token` `--asset_id` `--name` `--permissions` [`--expires_at`] [`--save_to_env`] -> new key info
+- `v3_list_apikeys.py`: `--token` `--asset_id` -> all API keys
+- `v3_delete_apikey.py`: `--token` `--asset_id` `--prefix` [`--force`] -> delete key by prefix
 
 ### Assets (4)
-- `v3_list_assets.py`: `--token` → all assets
-- `v3_get_asset_details.py`: `--auth` `--asset_id` [`--apikey`] → asset config
-- `v3_update_asset.py`: `--auth` `--asset_id` `--name` [`--apikey`] → rename asset
-- `v3_update_asset_config.py`: `--auth` `--asset_id` `--config` [`--apikey`] → update timezone, city, etc.
+- `v3_list_assets.py`: `--token` -> all assets
+- `v3_get_asset_details.py`: `--auth` `--asset_id` [`--apikey`] -> asset config
+- `v3_update_asset.py`: `--auth` `--asset_id` `--name` [`--apikey`] -> rename asset
+- `v3_update_asset_config.py`: `--auth` `--asset_id` `--config` [`--apikey`] [`--safe`] -> update timezone, city, etc.
 
 ### Devices & Monitoring (6)
-- `v3_list_devices.py`: `--auth` `--asset_id` [`--apikey`] → all devices
-- `v3_get_device_details.py`: `--auth` `--asset_id` `--device_id` [`--apikey`] → real-time status (temp, battery, online)
-- `v3_update_device_name.py`: `--auth` `--asset_id` `--device_id` `--name` [`--apikey`] → rename device
-- `v3_get_device_signal.py`: `--auth` `--asset_id` `--device_id` [`--apikey`] → signal strength with gateway
-- `v3_get_device_history.py`: `--auth` `--asset_id` `--device_id` `--start` `--end` `--tz` `--field` [`--apikey`] → historical data
-- `v3_export_device_history.py`: `--auth` `--asset_id` `--device_id` `--email` `--start` `--end` `--tz` `--fields` [`--apikey`] → export to email
+- `v3_list_devices.py`: `--auth` `--asset_id` [`--apikey`] -> all devices
+- `v3_get_device_details.py`: `--auth` `--asset_id` `--device_id` [`--apikey`] -> real-time status (temp, battery, online)
+- `v3_update_device_name.py`: `--auth` `--asset_id` `--device_id` `--name` [`--apikey`] -> rename device
+- `v3_get_device_signal.py`: `--auth` `--asset_id` `--device_id` [`--apikey`] -> signal strength with gateway
+- `v3_get_device_history.py`: `--auth` `--asset_id` `--device_id` `--start` `--end` `--tz` `--field` [`--window`] [`--agg`] [`--limit`] [`--apikey`] -> historical data
+- `v3_export_device_history.py`: `--auth` `--asset_id` `--device_id` `--email` `--start` `--end` `--tz` `--fields` [`--window`] [`--agg`] [`--apikey`] -> export to email
 
 ## Example Workflow
 
 ```bash
-# Login — outputs full JSON with access_token and refresh_token
+# Login - outputs full JSON with access_token and refresh_token
 TOKEN=$(python scripts/v3_login.py | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 REFRESH=$(python scripts/v3_login.py | python -c "import sys,json; print(json.load(sys.stdin)['refresh_token'])")
 
