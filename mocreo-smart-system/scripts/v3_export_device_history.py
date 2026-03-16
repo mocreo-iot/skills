@@ -42,15 +42,17 @@ def export_history(auth_val, asset_id, device_id, email, start, end, tz, fields,
     except Exception as e: print(e, file=sys.stderr); sys.exit(1)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Export device history for a time range. This API is time-range-based and does not support exporting an exact row count."
+    )
     parser.add_argument("--auth", required=True, help="Token or API Key")
     parser.add_argument("--asset_id", required=True)
     parser.add_argument("--device_id", required=True)
     parser.add_argument("--email", required=True)
-    parser.add_argument("--start", required=True)
-    parser.add_argument("--end", required=True)
+    parser.add_argument("--start", required=True, help="Inclusive or API-defined lower time boundary in milliseconds")
+    parser.add_argument("--end", required=True, help="Inclusive or API-defined upper time boundary in milliseconds")
     parser.add_argument("--tz", required=True)
-    parser.add_argument("--fields", required=True)
+    parser.add_argument("--fields", required=True, help="Comma-separated history fields to export")
     parser.add_argument("--window", "--window_duration", dest="window")
     parser.add_argument("--agg", "--aggregations_type", dest="agg")
     parser.add_argument("--apikey", action="store_true", help="Use X-API-Key instead of Bearer")

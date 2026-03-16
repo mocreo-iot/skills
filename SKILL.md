@@ -17,21 +17,18 @@ Do not proactively read or inspect the `.env` file. Credentials are checked auto
 
 MOCREO credentials are not configured. Open a terminal, navigate to the skill folder, and run the setup script:
 
-**macOS / Linux**
+**macOS / Linux / Windows**
 ```bash
-bash scripts/mocreo-config.sh
-```
-
-**Windows (Command Prompt or PowerShell)**
-```powershell
-python scripts\bootstrap_credentials.py
+python scripts/setup_credentials.py
 ```
 
 The script will guide you through platform selection and prompt for your email and password (password input is hidden). Let me know once it's done and I will continue.
 
 ---
 
-**Do NOT run `bootstrap_credentials.py`, `mocreo-config.sh`, or any login script yourself.** They require interactive terminal input (platform menus, hidden password) and will hang in a non-interactive AI shell.
+If the login script does find credentials but the login still fails, do not say setup is missing. Treat that as a configured-but-invalid state: the saved account, password, or selected platform is likely wrong. In that case, tell the user that the bootstrap may have saved credentials without proving they work, ask them to rerun the setup and confirm they picked the correct platform, and only mention platform mismatch as a possibility rather than a certainty.
+
+**Do NOT run `setup_credentials.py` or any login script yourself.** They require interactive terminal input (platform menus, hidden password) and will hang in a non-interactive AI shell.
 
 The setup flow:
 - It asks guided terminal questions to identify the user's system.
@@ -83,8 +80,7 @@ skills/
 |- requirements.txt               <- shared Python dependencies
 |- .env.example                   <- credential template
 |- scripts/
-|  |- bootstrap_credentials.py    <- interactive shared credential setup (Python)
-|  |- mocreo-config.sh            <- shell launcher for bootstrap (entry point for run://mocreo-config)
+|  |- setup_credentials.py        <- interactive shared credential setup (Python)
 |- common/
 |  |- mocreo_auth.py              <- shared credential and platform helpers
 |- mocreo-sensor-system/
@@ -94,3 +90,6 @@ skills/
    |- SKILL.md                    <- Smart System instructions for AI
    \- scripts/                   <- 15 atomic Python scripts
 ```
+
+
+

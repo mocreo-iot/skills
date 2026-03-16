@@ -10,9 +10,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from common.mocreo_auth import (
     extract_apikey_prefix,
-    get_saved_v3_apikey,
-    prompt_yes_no,
-    write_env_values,
+    save_v3_apikey_record,
 )
 
 VALID_PERMISSIONS = {
@@ -26,27 +24,7 @@ VALID_PERMISSIONS = {
 }
 
 
-def should_save_apikey(save_to_env, created_prefix):
-    if save_to_env:
-        return True
-
-    saved_apikey = get_saved_v3_apikey()
-    saved_prefix = extract_apikey_prefix(saved_apikey)
-    if not saved_apikey:
-        return prompt_yes_no(
-            f"Do you want to save the new API key ({created_prefix}) as the default MOCREO_V3_API_KEY in .env?",
-            default=False,
-        )
-
-    return prompt_yes_no(
-        "A default MOCREO_V3_API_KEY already exists"
-        + (f" ({saved_prefix})" if saved_prefix else "")
-        + f". Do you want to replace it with the new key ({created_prefix})?",
-        default=False,
-    )
-
-
-def create_apikey(token, asset_id, display_name, permissions, expires_at=None, save_to_env=False):
+def create_apikey(token, asset_id, display_name, permissions, expires_at=None, asset_name=None):
     requested_permissions = [permission.strip() for permission in permissions.split(",") if permission.strip()]
     invalid_permissions = [permission for permission in requested_permissions if permission not in VALID_PERMISSIONS]
     if invalid_permissions:
@@ -69,9 +47,18 @@ def create_apikey(token, asset_id, display_name, permissions, expires_at=None, s
             result = response_json.get("result", {})
             api_key = result.get("key")
             created_prefix = result.get("prefix") or extract_apikey_prefix(api_key) or "unknown"
-            if api_key and should_save_apikey(save_to_env, created_prefix):
-                write_env_values({"MOCREO_V3_API_KEY": api_key})
-                response_json.setdefault("messages", []).append("Saved as default MOCREO_V3_API_KEY in .env")
+            if api_key:
+                save_v3_apikey_record(
+                    asset_id=asset_id,
+                    asset_name=asset_name,
+                    api_key=api_key,
+                    permissions=requested_permissions,
+                    prefix=created_prefix,
+                    display_name=result.get("displayName") or display_name,
+                    created_at=result.get("createdAt"),
+                    expires_at=result.get("expiresAt"),
+                )
+                response_json.setdefault("messages", []).append("Saved in the local asset-scoped API key registry")
             print(json.dumps(response_json, ensure_ascii=False))
         else:
             print(f"ERROR: {r.status_code} - {r.text}", file=sys.stderr)
@@ -87,10 +74,6 @@ if __name__ == "__main__":
     parser.add_argument("--name", required=True)
     parser.add_argument("--permissions", required=True, help="Comma-separated permissions e.g. device.read,device.update")
     parser.add_argument("--expires_at", help="Optional ISO 8601 expiration time, e.g. 2026-12-31T23:59:59.000Z")
-    parser.add_argument(
-        "--save_to_env",
-        action="store_true",
-        help="Skip the confirmation prompt and save the returned full API key into repo-root .env as MOCREO_V3_API_KEY",
-    )
+    parser.add_argument("--asset_name", default=None, help="Optional asset display name for local API key registry metadata")
     args = parser.parse_args()
-    create_apikey(args.token, args.asset_id, args.name, args.permissions, args.expires_at, args.save_to_env)
+    create_apikey(args.token, args.asset_id, args.name, args.permissions, args.expires_at, args.asset_name)

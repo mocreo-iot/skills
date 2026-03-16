@@ -7,25 +7,15 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from common.mocreo_auth import delete_env_keys, extract_apikey_prefix, get_saved_v3_apikey, prompt_yes_no
+from common.mocreo_auth import delete_v3_apikey_record, prompt_yes_no
 
 
 def delete_apikey(token, asset_id, prefix, force=False):
-    saved_apikey = get_saved_v3_apikey()
-    saved_prefix = extract_apikey_prefix(saved_apikey)
-    is_default_key = saved_prefix == prefix and saved_prefix is not None
-
     if not force:
-        if is_default_key:
-            confirmed = prompt_yes_no(
-                f"The API key prefix {prefix} matches the current default MOCREO_V3_API_KEY in .env. Do you want to delete it?",
-                default=False,
-            )
-        else:
-            confirmed = prompt_yes_no(
-                f"Do you want to delete API key prefix {prefix} from asset {asset_id}?",
-                default=False,
-            )
+        confirmed = prompt_yes_no(
+            f"Do you want to delete API key prefix {prefix} from asset {asset_id}?",
+            default=False,
+        )
         if not confirmed:
             print("Deletion cancelled.")
             return
@@ -35,15 +25,10 @@ def delete_apikey(token, asset_id, prefix, force=False):
     try:
         r = requests.delete(url, headers=headers)
         if r.status_code in (200, 204):
-            if is_default_key:
-                clear_saved = force or prompt_yes_no(
-                    "Do you also want to clear MOCREO_V3_API_KEY from .env now that the default key was deleted?",
-                    default=True,
-                )
-                if clear_saved:
-                    delete_env_keys("MOCREO_V3_API_KEY")
-                    print("Deleted API key and cleared MOCREO_V3_API_KEY from .env")
-                    return
+            removed_from_registry = delete_v3_apikey_record(asset_id, prefix)
+            if removed_from_registry:
+                print("Deleted API key and removed it from the local asset-scoped API key registry")
+                return
             print(r.text)
         else:
             print(f"ERROR: {r.status_code} - {r.text}", file=sys.stderr)

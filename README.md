@@ -34,7 +34,7 @@ After installation, ask naturally for the task you want. The root skill will rou
 On first use, run:
 
 ```bash
-python scripts/bootstrap_credentials.py
+python scripts/setup_credentials.py
 ```
 
 The bootstrap flow avoids manual `.env` editing:
@@ -48,8 +48,9 @@ Shared configuration uses:
 MOCREO_USER=your_email@example.com
 MOCREO_PASS=your_password
 MOCREO_PLATFORM=sensor_or_smart
-MOCREO_V3_API_KEY=your_api_key
 ```
+
+For Smart System API keys, the skill now also keeps a local asset-scoped registry in `.mocreo_v3_apikeys.json` so one account can retain separate read/write keys for multiple assets without overwriting a single global key. This file is created automatically the first time a Smart System API key is saved.
 
 ## What You Can Ask
 
@@ -87,3 +88,4 @@ Credentials are stored only in the local `.env` file (git-ignored). The setup fl
 ## License
 
 MIT
+

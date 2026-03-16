@@ -1,6 +1,8 @@
 __pycache__/
 *.pyc
 venv/
+.env
+.mocreo_v3_apikeys.json
 .DS_Store
 *.log
 .idea/

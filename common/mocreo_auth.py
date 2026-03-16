@@ -1,5 +1,6 @@
 import argparse
 import getpass
+import json
 import os
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 ENV_PATH = ROOT_DIR / ".env"
+V3_APIKEY_REGISTRY_PATH = ROOT_DIR / ".mocreo_v3_apikeys.json"
 VALID_PLATFORMS = {"sensor", "smart"}
 LEGACY_USER_KEYS = ("MOCREO_V2_USER", "MOCREO_V3_EMAIL")
 LEGACY_PASSWORD_KEYS = ("MOCREO_V2_PASS", "MOCREO_V3_PASS")
@@ -80,7 +82,6 @@ def write_env_values(values):
         "MOCREO_USER",
         "MOCREO_PASS",
         "MOCREO_PLATFORM",
-        "MOCREO_V3_API_KEY",
     ]
 
     rendered = []
@@ -110,7 +111,6 @@ def delete_env_keys(*keys):
         "MOCREO_USER",
         "MOCREO_PASS",
         "MOCREO_PLATFORM",
-        "MOCREO_V3_API_KEY",
     ]
 
     rendered = []
@@ -141,9 +141,114 @@ def extract_apikey_prefix(api_key):
     return parts[1]
 
 
-def get_saved_v3_apikey():
-    load_env()
-    return os.getenv("MOCREO_V3_API_KEY")
+def load_v3_apikey_registry():
+    if not V3_APIKEY_REGISTRY_PATH.exists():
+        return {"assets": {}}
+    try:
+        data = json.loads(V3_APIKEY_REGISTRY_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {"assets": {}}
+    if not isinstance(data, dict):
+        return {"assets": {}}
+    assets = data.get("assets")
+    if not isinstance(assets, dict):
+        data["assets"] = {}
+    return data
+
+
+def save_v3_apikey_registry(registry):
+    rendered = json.dumps(registry, indent=2, ensure_ascii=False) + "\n"
+    V3_APIKEY_REGISTRY_PATH.write_text(rendered, encoding="utf-8")
+
+
+def normalize_permissions_list(permissions):
+    unique = []
+    for permission in permissions or []:
+        normalized = (permission or "").strip()
+        if normalized and normalized not in unique:
+            unique.append(normalized)
+    return sorted(unique)
+
+
+def make_permission_signature(permissions):
+    normalized = normalize_permissions_list(permissions)
+    return ",".join(normalized) if normalized else "unspecified"
+
+
+def classify_v3_apikey_tier(permissions):
+    normalized = normalize_permissions_list(permissions)
+    if any(permission.endswith(".update") or permission.endswith(".delete") for permission in normalized):
+        return "write"
+    return "read"
+
+
+def save_v3_apikey_record(asset_id, asset_name, api_key, permissions, prefix=None, display_name=None, created_at=None, expires_at=None):
+    if not asset_id or not api_key:
+        return
+    registry = load_v3_apikey_registry()
+    assets = registry.setdefault("assets", {})
+    asset_entry = assets.setdefault(asset_id, {"assetName": asset_name or "", "keys": {}})
+    if asset_name:
+        asset_entry["assetName"] = asset_name
+    normalized_permissions = normalize_permissions_list(permissions)
+    signature = make_permission_signature(normalized_permissions)
+    asset_entry.setdefault("keys", {})[signature] = {
+        "prefix": prefix or extract_apikey_prefix(api_key),
+        "key": api_key,
+        "permissions": normalized_permissions,
+        "tier": classify_v3_apikey_tier(normalized_permissions),
+        "displayName": display_name,
+        "createdAt": created_at,
+        "expiresAt": expires_at,
+    }
+    save_v3_apikey_registry(registry)
+
+
+def delete_v3_apikey_record(asset_id, prefix):
+    if not asset_id or not prefix:
+        return False
+    registry = load_v3_apikey_registry()
+    assets = registry.get("assets", {})
+    asset_entry = assets.get(asset_id)
+    if not asset_entry:
+        return False
+    keys = asset_entry.get("keys", {})
+    removed = False
+    for signature, record in list(keys.items()):
+        if isinstance(record, dict) and record.get("prefix") == prefix:
+            keys.pop(signature, None)
+            removed = True
+    if not keys:
+        assets.pop(asset_id, None)
+    if removed:
+        save_v3_apikey_registry(registry)
+    return removed
+
+
+def get_saved_v3_apikey_for_asset(asset_id, required_permissions=None, preferred_tier=None):
+    if not asset_id:
+        return None
+    registry = load_v3_apikey_registry()
+    asset_entry = registry.get("assets", {}).get(asset_id)
+    if not asset_entry:
+        return None
+    required = set(normalize_permissions_list(required_permissions))
+    candidates = []
+    for record in asset_entry.get("keys", {}).values():
+        if not isinstance(record, dict) or not record.get("key"):
+            continue
+        permissions = set(normalize_permissions_list(record.get("permissions")))
+        if required and not required.issubset(permissions):
+            continue
+        candidates.append(record)
+    if not candidates:
+        return None
+    if preferred_tier:
+        tier_matches = [record for record in candidates if record.get("tier") == preferred_tier]
+        if tier_matches:
+            candidates = tier_matches
+    candidates.sort(key=lambda record: (record.get("tier") != "write", len(record.get("permissions", []))))
+    return candidates[0]
 
 
 def prompt_choice(prompt_text, options):
