@@ -7,6 +7,8 @@ tools: [ "run_shell_command" ]
 
 # MOCREO API Skills
 
+This is the root router skill. Load this skill first, then route to exactly one sub-skill.
+
 ## First-Time Setup
 
 Do not proactively read or inspect the `.env` file. Credentials are checked automatically when the login script runs. If either `v2_login.py` or `v3_login.py` exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the following message **verbatim** — do not summarize, rephrase, or shorten it. Then stop and wait for the user to confirm setup is complete before taking any further action.
@@ -15,7 +17,7 @@ Do not proactively read or inspect the `.env` file. Credentials are checked auto
 
 ---
 
-MOCREO credentials are not configured. Open a terminal, navigate to the skill folder, and run the setup script:
+MOCREO credentials are not configured. Open a terminal, navigate to the repository root, and run the setup script:
 
 **macOS / Linux / Windows**
 ```bash
@@ -50,8 +52,8 @@ Read the user's request and load the appropriate sub-skill SKILL.md:
 
 | User mentions | Load |
 |---|---|
-| "sensor", "hub", "node", "alert", "Sensor System" | `mocreo-sensor-system/SKILL.md` |
-| "H5Pro", "H6Pro", "NS1", "NS2", "NS3", "asset", "API key", "Smart System" | `mocreo-smart-system/SKILL.md` |
+| "sensor", "hub", "node", "alert", "Sensor System" | `skills/mocreo-sensor-system/SKILL.md` |
+| "H5Pro", "H6Pro", "NS1", "NS2", "NS3", "asset", "API key", "Smart System" | `skills/mocreo-smart-system/SKILL.md` |
 
 If the system cannot be determined from the request but credentials are already configured, prefer the saved `MOCREO_PLATFORM`.
 
@@ -71,25 +73,32 @@ Examples:
 
 Never use technical jargon (no "Bearer token", no "exit code", no script names) in this sentence.
 
+## Command Base Path
+
+Run all repository commands from the repository root shown below, not from an individual sub-skill folder. Use repo-root-relative paths such as `python scripts/setup_credentials.py` or `python skills/mocreo-smart-system/scripts/v3_login.py`.
+
 ## Repository Layout
 
 ```
-skills/
-|- SKILL.md                       <- this file (router)
+skills/                           <- repo root
+|- .claude-plugin/
+|  |- plugin.json                 <- plugin manifest
+|  \- marketplace.json            <- marketplace catalog
 |- README.md                      <- human-facing product page
 |- requirements.txt               <- shared Python dependencies
 |- .env.example                   <- credential template
 |- scripts/
-|  |- setup_credentials.py        <- interactive shared credential setup (Python)
+|  \- setup_credentials.py        <- interactive shared credential setup (Python)
 |- common/
-|  |- mocreo_auth.py              <- shared credential and platform helpers
-|- mocreo-sensor-system/
-|  |- SKILL.md                    <- Sensor System instructions for AI
-|  \- scripts/                   <- 11 atomic Python scripts
-\- mocreo-smart-system/
-   |- SKILL.md                    <- Smart System instructions for AI
-   \- scripts/                   <- 15 atomic Python scripts
+|  \- mocreo_auth.py              <- shared credential and platform helpers
+\- skills/
+   |- mocreo-api/
+   |  \- SKILL.md                 <- this file (router)
+   |- mocreo-sensor-system/
+   |  |- SKILL.md                 <- Sensor System instructions for AI
+   |  \- scripts/                 <- 11 atomic Python scripts
+   \- mocreo-smart-system/
+      |- SKILL.md                 <- Smart System instructions for AI
+      \- scripts/                 <- 15 atomic Python scripts
 ```
-
-
 

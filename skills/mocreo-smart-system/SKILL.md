@@ -7,6 +7,8 @@ tools: [ "run_shell_command" ]
 
 # MOCREO Smart System Skill
 
+Before using this sub-skill directly, check the root router skill at `skills/mocreo-api/SKILL.md` and follow its routing rules first.
+
 ## Triggering
 - When users ask about MOCREO Smart System devices (H5Pro, H6Pro, NS1/NS2/NS3, etc.).
 - When users need account operations, asset management, device monitoring, history queries, or data export.
@@ -20,7 +22,7 @@ pip install -r requirements.txt
 Try `pip3` or `python -m pip install requests python-dotenv` if that fails. Never ask the user to install packages.
 
 **Credentials**:
-1. Do not proactively read `.env`. Run `scripts/v3_login.py` as the first step. If it exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the fixed "Credential Missing" response defined in the root `SKILL.md` verbatim and wait for the user to confirm setup is complete before continuing.
+1. Do not proactively read `.env`. Run `python skills/mocreo-smart-system/scripts/v3_login.py` from the repository root as the first step. If it exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the fixed "Credential Missing" response defined in the root `SKILL.md` verbatim and wait for the user to confirm setup is complete before continuing.
 2. The bootstrap identifies the platform by guided questions about the app, hub model, or sensor family. It uses this mapping:
    - `MOCREO Smart App` = `MOCREO Smart System` = `MOCREO V3`
    - V3 hubs: `H3`, `H5-Lite`, `H5-Pro`, `H6-Lite`, `H6-Pro`
@@ -33,7 +35,7 @@ Try `pip3` or `python -m pip install requests python-dotenv` if that fails. Neve
 
 **Token lifecycle**:
 1. After login, save both `access_token` and `refresh_token` from the JSON output.
-2. If any API call returns 401: automatically run `scripts/v3_refresh_token.py` with the saved tokens, then retry the original call.
+2. If any API call returns 401: automatically run `python skills/mocreo-smart-system/scripts/v3_refresh_token.py` from the repository root with the saved tokens, then retry the original call.
 3. If refresh also fails: inform the user the session has expired and re-run login.
 
 ## Output Contract
@@ -42,9 +44,9 @@ Try `pip3` or `python -m pip install requests python-dotenv` if that fails. Neve
 - **exit code**: `0` = success, `1` = failure
 
 ## Script Location
-All scripts are in `scripts/`. Always run from the skill root:
+All Smart System scripts are in `skills/mocreo-smart-system/scripts/`. Always run from the repository root:
 ```bash
-python scripts/v3_login.py [args]
+python skills/mocreo-smart-system/scripts/v3_login.py [args]
 ```
 
 ## Timestamp Format
@@ -60,18 +62,20 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
 2. **Standard Flow**:
    - Login -> get token
    - List assets (`v3_list_assets.py`) to find Asset ID
-   - For asset-scoped scripts that support both auth modes, first resolve the best saved API key for the selected asset from the local registry with `v3_resolve_apikey.py`, then prefer that API key by default
+   - For asset-scoped scripts that support both auth modes, first resolve the best saved API key for the selected asset from the local registry with `v3_resolve_apikey.py`, then prefer that API key by default unless the route has an explicit exception
    - List devices (`v3_list_devices.py`) under that asset to find Device ID
    - Execute specific operations using those IDs
 3. **Authentication Modes**:
    - Management scripts (user login, refresh, asset list, API key create/list/delete) require a Bearer Token.
    - Public asset/device business APIs are documented as `X-API-Key` APIs. In this skill, those scripts accept either `--auth <TOKEN>` or `--auth <API_KEY> --apikey`.
    - Default policy: whenever a script supports both auth modes, use API Key by default rather than Bearer Token.
+   - Explicit exception: `v3_export_device_history.py` should use Bearer Token by default, even though the script accepts `--apikey`.
    - Do not skip the API key resolution step for supported asset-scoped routes. Token is not the default shortcut for those routes.
    - Keep using Bearer Token only for flows that require it, such as login, token refresh, asset listing, and API key management.
    - Do not silently create a new API key just to satisfy that preference. If no suitable saved API key is available in the local registry for the selected asset, fall back to Bearer Token unless the user explicitly asks to create or save an API key.
    - Remember that API keys are asset-bound. Resolve them by `asset_id`, and prefer a key whose saved permission profile matches the requested operation.
    - For supported asset-scoped routes, the expected order is: resolve local registry key -> try API Key -> only then fall back to Bearer Token if no suitable key exists or the API-key path fails in an allowed fallback case.
+   - Export is a documented exception to that order: for `v3_export_device_history.py`, start with Bearer Token instead of API Key until the backend export bug is fixed.
    - If an API-key-backed request returns `403` with a permission message such as `Forbidden: API Key does not have the required permissions`, tell the user the API key is valid but lacks the required permission for that operation. Do not describe that case as bad credentials, missing setup, or an expired session.
    - If a token-backed management request such as API key creation, listing, or deletion returns `403`, tell the user their signed-in account lacks sufficient role permissions on that asset for that management action. Do not describe that case as a bad login, expired token, or missing API key.
    - Use these response patterns for permission-denied cases:
@@ -123,6 +127,7 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
    - `v3_get_device_signal.py` may return `success=true` with `result=null`; do not treat that alone as a script failure.
    - If signal data is needed, prefer LoRa or hub-connected devices such as `LS1` over Wi-Fi-only devices.
    - `v3_export_device_history.py` triggers a real export action. Use it only when the user explicitly asks to export or email data.
+   - For now, always call `v3_export_device_history.py` with Bearer Token by default. Do not prefer API Key first for export.
    - The public API documents export as sending a download link to the specified email. When export succeeds, report the returned download URL and mention the destination email used.
    - The export API is time-range-based, not record-count-based. Do not describe it as exporting an exact number of rows unless the API has already proven that behavior for the same request shape.
    - If the user asks for "latest N records" and also wants an export email, first use `v3_get_device_history.py` with `--limit N` to identify the target records, then export the time range covering them. Explain that the exported file may contain a slightly different row count because export uses `from`/`to` boundaries rather than `limit`.
@@ -137,7 +142,9 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
    - If `config.timeFormat` is `hour12`, present times in a familiar 12-hour local format such as `02/26/2026 08:58:20 AM`. If it is `hour24`, present times in a familiar 24-hour local format such as `2026-02-26 08:58:20`.
    - For temperature data, prefer the asset's configured temperature unit from `config.units.temperature` when it clearly maps to Celsius or Fahrenheit.
    - Treat clear values such as `C`, `F`, `°C`, `°F`, `℃`, or `℉` as trustworthy unit settings.
-   - If terminal output garbles the unit glyph, inspect the underlying Unicode value before treating it as invalid. In particular, `\u2103` means `℃` and `\u2109` means `℉`, even if the terminal renders a different character.
+   - If terminal output garbles the unit glyph, inspect the underlying Unicode value before treating it as invalid.
+   - Normalize unit glyphs by code point first, not by terminal appearance. In particular, `\u2103` means `℃` and `\u2109` means `℉`, even if the terminal renders a different character.
+   - Treat visually corrupted terminal renderings such as `沈` or `⊥` as display artifacts, not as authoritative unit values, until the underlying Unicode value has been checked.
    - Only treat the configured temperature unit as unreadable when the underlying value still does not map cleanly to Celsius or Fahrenheit after that normalization step. If that happens, tell the user the asset's temperature-unit setting could not be read cleanly from the server response, then fall back to the most reliable observed source for that response path.
    - If you convert temperature values for display, say which unit you are showing.
 10. **History Query Rules**:
@@ -159,7 +166,7 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
    - Use the user's explicitly requested email when provided; otherwise use the confirmed default email for the current account.
    - Do not present `v3_export_device_history.py` as supporting `limit`; it does not.
    - For requests framed as "export the latest N records", tell the user you are exporting the time range that covers those records, not guaranteeing an exact row count in the exported file.
-   - Although the script accepts `--apikey`, if the export call fails with an unexpected server error when using API Key, retry with Bearer Token and treat Bearer Token as the practical fallback for export on that asset.
+   - Although the script accepts `--apikey`, the current backend export path has a known API-key bug. For now, use Bearer Token as the default and practical credential for export on every asset unless the backend behavior changes.
 
 ## Scripts
 
@@ -191,28 +198,28 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
 
 ```bash
 # Login - outputs full JSON with access_token and refresh_token
-TOKEN=$(python scripts/v3_login.py | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-REFRESH=$(python scripts/v3_login.py | python -c "import sys,json; print(json.load(sys.stdin)['refresh_token'])")
+TOKEN=$(python skills/mocreo-smart-system/scripts/v3_login.py | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+REFRESH=$(python skills/mocreo-smart-system/scripts/v3_login.py | python -c "import sys,json; print(json.load(sys.stdin)['refresh_token'])")
 
 # Find Asset ID
-python scripts/v3_list_assets.py --token "$TOKEN"
+python skills/mocreo-smart-system/scripts/v3_list_assets.py --token "$TOKEN"
 
 # List devices under an asset
-python scripts/v3_list_devices.py --auth "$TOKEN" --asset_id <ASSET_ID>
+python skills/mocreo-smart-system/scripts/v3_list_devices.py --auth "$TOKEN" --asset_id <ASSET_ID>
 
 # Get device history for the past 24 hours
 START=$(python -c "import time; print(int((time.time()-86400)*1000))")
 END=$(python -c "import time; print(int(time.time()*1000))")
-python scripts/v3_get_device_history.py --auth "$TOKEN" \
+python skills/mocreo-smart-system/scripts/v3_get_device_history.py --auth "$TOKEN" \
   --asset_id <ASSET_ID> --device_id <DEVICE_ID> \
   --start "$START" --end "$END" --tz "Asia/Shanghai" --field "temperature"
 
 # Export data to email
-python scripts/v3_export_device_history.py --auth "$TOKEN" \
+python skills/mocreo-smart-system/scripts/v3_export_device_history.py --auth "$TOKEN" \
   --asset_id <ASSET_ID> --device_id <DEVICE_ID> --email user@example.com \
   --start "$START" --end "$END" --tz "Asia/Shanghai" --fields "temperature,humidity"
 
 # Refresh when token expires (do this automatically, don't ask the user)
-TOKEN=$(python scripts/v3_refresh_token.py --token "$TOKEN" --refresh_token "$REFRESH" \
+TOKEN=$(python skills/mocreo-smart-system/scripts/v3_refresh_token.py --token "$TOKEN" --refresh_token "$REFRESH" \
   | python -c "import sys,json; d=json.load(sys.stdin); print(d.get('result', d)['access_token'])")
 ```

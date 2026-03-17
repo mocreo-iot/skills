@@ -31,11 +31,15 @@ After installation, ask naturally for the task you want. The root skill will rou
 
 ## First Login Setup
 
+Run repository commands from the repository root.
+
 On first use, run:
 
 ```bash
 python scripts/setup_credentials.py
 ```
+
+If the local `.env` file does not exist yet, the setup script will create it automatically.
 
 The bootstrap flow avoids manual `.env` editing:
 - It asks guided terminal questions about the app, Hub, or Sensor model to determine whether you are on Sensor System (V2) or Smart System (V3).
