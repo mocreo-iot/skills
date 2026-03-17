@@ -56,6 +56,19 @@ MOCREO_PLATFORM=sensor_or_smart
 
 For Smart System API keys, the skill now also keeps a local asset-scoped registry in `.mocreo_v3_apikeys.json` so one account can retain separate read/write keys for multiple assets without overwriting a single global key. This file is created automatically the first time a Smart System API key is saved.
 
+## Claude Packaging
+
+The canonical source layout stays at the repository root so `npx skills add` and other agents can read the repo directly.
+
+Claude marketplace publishing uses a generated, self-contained package at `plugins/mocreo-api`. Regenerate that package with:
+
+```bash
+python scripts/build_claude_plugin.py
+```
+
+That build step refreshes the Claude plugin wrapper, plugin manifest, packaged skills, shared scripts, shared auth helpers, and required OpenAPI or Swagger assets without turning the repository into a hand-maintained duplicate tree.
+Do not edit files under `plugins/mocreo-api` directly; treat that directory as a generated release artifact.
+
 ## What You Can Ask
 
 **Device Health**
@@ -92,4 +105,3 @@ Credentials are stored only in the local `.env` file (git-ignored). The setup fl
 ## License
 
 MIT
-
