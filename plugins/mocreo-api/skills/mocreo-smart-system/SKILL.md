@@ -1,6 +1,6 @@
 ---
 name: mocreo-smart-system
-description: MOCREO Smart System skill. Supports H5Pro, H6Pro, NS series devices with asset management, monitoring, history, and API key control.
+description: MOCREO Smart System skill for battery, temperature, humidity, online status, history, and asset or device queries on V3 devices.
 version: 1.3.0
 tools: [ "run_shell_command" ]
 ---
@@ -30,7 +30,7 @@ Try `pip3` or `python -m pip install requests python-dotenv` if that fails. Neve
    - Shared sensors needing a follow-up question: `ST5`, `ST6`, `ST8`, `ST9`, `ST10`, `MS1`, `SW2`
 3. Store shared login credentials in the repo-root `.env` using `MOCREO_USER`, `MOCREO_PASS`, and `MOCREO_PLATFORM`. Store Smart System API keys in the local asset-scoped registry `.mocreo_v3_apikeys.json`, grouped by `asset_id` and permission profile. Create that registry file automatically the first time a Smart System API key is saved.
 4. Password entry must happen in the terminal with hidden input. Never ask the user to type a password in chat or manually edit `.env` unless they explicitly want to.
-5. Treat `MOCREO_PLATFORM=smart` as the default routing hint for Smart System requests.
+5. Treat `MOCREO_PLATFORM=smart` as the routing hint only after the root router has selected this sub-skill. Remember that Smart System can also contain sensors, so generic sensor-data requests do not imply Sensor System.
 6. If login fails after credentials were found, treat it as a configured-but-invalid state rather than a missing-setup state. Tell the user the saved account, password, or selected platform may be wrong, and ask them to rerun the bootstrap with the correct platform or update `.env` directly.
 
 **Token lifecycle**:

@@ -1,22 +1,36 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "mocreo-marketplace",
-  "description": "MOCREO API toolkit for AI agents. Interact with MOCREO IoT sensors and smart devices via natural language.",
+  "description": "MOCREO device data assistant for English queries. Query battery, temperature, humidity, online status, alerts, and history by device ID, node ID, asset, or hub across Smart System (V3) and Sensor System (V2).",
   "owner": {
     "name": "MOCREO"
   },
   "plugins": [
     {
       "name": "mocreo-api",
-      "description": "Interact with MOCREO IoT sensors and smart devices via natural language.",
-      "version": "1.0.0",
+      "description": "English MOCREO assistant for battery, temperature, humidity, online status, alerts, and history queries by device ID, node ID, asset, or hub.",
+      "version": "1.0.1",
       "author": {
         "name": "MOCREO"
       },
       "source": "./plugins/mocreo-api",
       "repository": "https://github.com/mocreo-iot/skills",
       "license": "MIT",
-      "keywords": ["mocreo", "iot", "sensor", "smart", "devices"]
+      "keywords": [
+        "mocreo",
+        "iot",
+        "sensor",
+        "smart",
+        "battery",
+        "temperature",
+        "humidity",
+        "history",
+        "device id",
+        "device status",
+        "node id",
+        "alerts",
+        "online status"
+      ]
     }
   ]
 }

@@ -19,14 +19,28 @@ python scripts/build_claude_plugin.py
 
 PLUGIN_MANIFEST = {
     "name": "mocreo-api",
-    "version": "1.0.0",
-    "description": "MOCREO API toolkit for AI agents. Interact with MOCREO IoT sensors and smart devices via natural language.",
+    "version": "1.0.1",
+    "description": "MOCREO device data assistant for English queries. Query battery, temperature, humidity, online status, alerts, and history by device ID, node ID, asset, or hub across Smart System (V3) and Sensor System (V2).",
     "author": {
         "name": "MOCREO",
     },
     "repository": "https://github.com/mocreo-iot/skills",
     "license": "MIT",
-    "keywords": ["mocreo", "iot", "sensor", "smart", "devices"],
+    "keywords": [
+        "mocreo",
+        "iot",
+        "sensor",
+        "smart",
+        "battery",
+        "temperature",
+        "humidity",
+        "history",
+        "device id",
+        "device status",
+        "node id",
+        "alerts",
+        "online status"
+    ],
     "skills": "./skills/mocreo-api",
 }
 
@@ -40,7 +54,6 @@ DIRECTORY_COPIES = [
 FILE_COPIES = [
     ("scripts/setup_credentials.py", "scripts/setup_credentials.py"),
     ("requirements.txt", "requirements.txt"),
-    (".env.example", ".env.example"),
     (".claude-plugin/openapi.en.yaml", "openapi.en.yaml"),
     (".claude-plugin/openapi.zh.yaml", "openapi.zh.yaml"),
     (".claude-plugin/sensor-swagger.json", "sensor-swagger.json"),
@@ -61,6 +74,7 @@ REQUIRED_OUTPUTS = [
 
 BANNED_OUTPUTS = [
     ".env",
+    ".env.example",
     ".mocreo_v3_apikeys.json",
 ]
 

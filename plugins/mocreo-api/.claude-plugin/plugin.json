@@ -1,7 +1,7 @@
 {
   "name": "mocreo-api",
-  "version": "1.0.0",
-  "description": "MOCREO API toolkit for AI agents. Interact with MOCREO IoT sensors and smart devices via natural language.",
+  "version": "1.0.1",
+  "description": "MOCREO device data assistant for English queries. Query battery, temperature, humidity, online status, alerts, and history by device ID, node ID, asset, or hub across Smart System (V3) and Sensor System (V2).",
   "author": {
     "name": "MOCREO"
   },
@@ -12,7 +12,15 @@
     "iot",
     "sensor",
     "smart",
-    "devices"
+    "battery",
+    "temperature",
+    "humidity",
+    "history",
+    "device id",
+    "device status",
+    "node id",
+    "alerts",
+    "online status"
   ],
   "skills": "./skills/mocreo-api"
 }

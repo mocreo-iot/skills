@@ -1,13 +1,16 @@
 ---
 name: mocreo-api
-description: MOCREO API toolkit for AI agents. Interact with MOCREO IoT sensors and smart devices via natural language.
-version: 1.0.0
+description: MOCREO English device-data router for battery, temperature, humidity, online status, alerts, and history queries by device ID, node ID, asset, or hub across Smart System (V3) and Sensor System (V2).
+version: 1.0.1
 tools: [ "run_shell_command" ]
 ---
 
 # MOCREO API Skills
 
 This is the root router skill. Load this skill first, then route to exactly one sub-skill.
+
+Use this skill whenever the user is asking about a MOCREO device's battery, temperature, humidity, online status, alerts, or history, including English requests that only provide a device ID, node ID, SN, asset, or hub model without explicitly saying MOCREO.
+
 
 ## First-Time Setup
 
@@ -43,6 +46,7 @@ The setup flow:
   - V3-only sensors: `MS2`, `LS1`, `LS2`, `LS3`, `LW1`, `LD1`, `LB1`, `NS1`, `NS2`, `NS3`
   - Shared sensors requiring a follow-up question: `ST5`, `ST6`, `ST8`, `ST9`, `ST10`, `MS1`, `SW2`
 - Password input is hidden via terminal secure entry and stored only in the local `.env` file.
+- In Claude marketplace deployments, shared runtime files such as `.env` and `.mocreo_v3_apikeys.json` live at the marketplace root rather than inside `plugins/mocreo-api`.
 
 Never ask the user to send their password in chat. Never guess their platform.
 
@@ -52,10 +56,16 @@ Read the user's request and load the appropriate sub-skill SKILL.md:
 
 | User mentions | Load |
 |---|---|
-| "sensor", "hub", "node", "alert", "Sensor System" | `skills/mocreo-sensor-system/SKILL.md` |
-| "H5Pro", "H6Pro", "NS1", "NS2", "NS3", "asset", "API key", "Smart System" | `skills/mocreo-smart-system/SKILL.md` |
+| "MOCREO Sensor App", "Sensor System", "V2", "H1", "H2", "node", "alert" | `skills/mocreo-sensor-system/SKILL.md` |
+| "MOCREO Smart App", "Smart System", "V3", "H3", "H5", "H6", "NS1", "NS2", "NS3", "asset", "API key" | `skills/mocreo-smart-system/SKILL.md` |
 
-If the system cannot be determined from the request but credentials are already configured, prefer the saved `MOCREO_PLATFORM`.
+Routing priority:
+- If `setup_credentials.py` has already saved `MOCREO_PLATFORM`, treat that saved platform as the primary source of truth.
+- Do not override the saved platform just because the user says generic words like `sensor`, `temperature`, `humidity`, `monitoring data`, or `device data`.
+- The word `sensor` alone is not enough to choose `mocreo-sensor-system`, because both Smart System and Sensor System can include sensors.
+- Only use request keywords as a routing hint when the request includes system-specific evidence such as app name, hub family, explicit system name, or clearly system-bound entities like `asset` or `API key`.
+
+If the system cannot be determined from the request but credentials are already configured, use the saved `MOCREO_PLATFORM`.
 
 If the system cannot be determined and credentials are not configured yet, output the fixed "Credential Missing" response above instead of asking for free-form credential details in chat.
 
@@ -86,7 +96,6 @@ runtime-root/
 |- .claude-plugin/
 |  \- plugin.json                <- plugin manifest when packaged for Claude
 |- requirements.txt              <- shared Python dependencies
-|- .env.example                  <- credential template
 |- scripts/
 |  \- setup_credentials.py       <- interactive shared credential setup (Python)
 |- common/
@@ -105,4 +114,4 @@ runtime-root/
 \- sensor-swagger.json          <- Sensor System Swagger reference
 ```
 
-In the canonical source repository, the Claude marketplace manifest lives at `.claude-plugin/marketplace.json`, and the self-contained Claude plugin package is generated under `plugins/mocreo-api/`.
+In the canonical source repository, the Claude marketplace manifest lives at `.claude-plugin/marketplace.json`, and the self-contained Claude plugin package is generated under `plugins/mocreo-api/`. In Claude marketplace deployments, the shared `.env`, `.env.example`, and `.mocreo_v3_apikeys.json` live at the marketplace root outside the nested plugin folder.

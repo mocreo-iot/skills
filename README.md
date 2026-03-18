@@ -27,7 +27,7 @@ Both methods install the root `mocreo-api` skill, which acts as a router for the
 - `mocreo-sensor-system`
 - `mocreo-smart-system`
 
-After installation, ask naturally for the task you want. The root skill will route to the correct sub-skill based on whether your request is about the MOCREO Sensor System or the MOCREO Smart System.
+After installation, ask naturally for the task you want. The root skill should route to the correct sub-skill by using the platform detected and saved by `python scripts/setup_credentials.py` as the primary source of truth. Generic words like `sensor`, `temperature`, or `monitoring data` are not enough to assume Sensor System, because both Sensor System and Smart System can contain sensors.
 
 ## First Login Setup
 
@@ -39,10 +39,11 @@ On first use, run:
 python scripts/setup_credentials.py
 ```
 
-If the local `.env` file does not exist yet, the setup script will create it automatically.
+If the local `.env` file does not exist yet, the setup script will create it automatically. In Claude marketplace deployments, the shared `.env` is created at the marketplace root, not under the nested `plugins/mocreo-api` directory.
 
 The bootstrap flow avoids manual `.env` editing:
 - It asks guided terminal questions about the app, Hub, or Sensor model to determine whether you are on Sensor System (V2) or Smart System (V3).
+- The saved `MOCREO_PLATFORM` result is then the canonical routing hint for later AI requests.
 - It then asks for your MOCREO account and password directly in the terminal.
 - Password input is hidden and the values are saved only to the local git-ignored `.env` file.
 

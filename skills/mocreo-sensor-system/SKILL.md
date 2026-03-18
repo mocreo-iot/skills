@@ -1,6 +1,6 @@
 ---
 name: mocreo-sensor-system
-description: MOCREO Sensor System skill. Supports hubs, sensor nodes, alerts, and monitoring via modular atomic scripts.
+description: MOCREO Sensor System skill for battery, status, alerts, node data, and monitoring queries on V2 hubs and sensor nodes.
 version: 1.0.0
 tools: [ "run_shell_command" ]
 ---
@@ -30,7 +30,7 @@ Try `pip3` or `python -m pip install requests python-dotenv` if that fails. Neve
    - Shared sensors needing a follow-up question: `ST5`, `ST6`, `ST8`, `ST9`, `ST10`, `MS1`, `SW2`
 3. Store credentials in the repo-root `.env` using `MOCREO_USER`, `MOCREO_PASS`, and `MOCREO_PLATFORM`.
 4. Password entry must happen in the terminal with hidden input. Never ask the user to type a password in chat or manually edit `.env` unless they explicitly want to.
-5. Treat `MOCREO_PLATFORM=sensor` as the default routing hint for Sensor System requests.
+5. Treat `MOCREO_PLATFORM=sensor` as the routing hint only after the root router has selected this sub-skill. Do not treat the word `sensor` by itself as proof that the account belongs to Sensor System.
 6. If login fails after credentials were found, treat it as a configured-but-invalid state rather than a missing-setup state. Tell the user the saved account, password, or selected platform may be wrong, and ask them to rerun the bootstrap with the correct platform or update `.env` directly.
 
 **Token lifecycle**:

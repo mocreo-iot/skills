@@ -7,7 +7,21 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
+def resolve_runtime_root():
+    repo_root = Path(__file__).resolve().parents[1]
+    parent = repo_root.parent
+    grandparent = parent.parent
+
+    # Marketplace deployment layout is:
+    # <marketplace-root>/plugins/<plugin-name>/...
+    # Shared runtime files should live at the marketplace root.
+    if parent.name == "plugins" and (grandparent / ".claude-plugin" / "marketplace.json").exists():
+        return grandparent
+
+    return repo_root
+
+
+ROOT_DIR = resolve_runtime_root()
 ENV_PATH = ROOT_DIR / ".env"
 V3_APIKEY_REGISTRY_PATH = ROOT_DIR / ".mocreo_v3_apikeys.json"
 VALID_PLATFORMS = {"sensor", "smart"}
