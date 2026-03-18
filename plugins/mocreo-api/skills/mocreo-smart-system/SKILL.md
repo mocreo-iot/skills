@@ -1,7 +1,7 @@
 ---
 name: mocreo-smart-system
 description: MOCREO Smart System skill for battery, temperature, humidity, online status, history, and asset or device queries on V3 devices.
-version: 1.3.0
+version: 1.3.4
 tools: [ "run_shell_command" ]
 ---
 
@@ -15,14 +15,18 @@ Before using this sub-skill directly, check the root router skill at `skills/moc
 
 ## Environment (AI Handles Automatically)
 
-**Dependencies**: If a script fails with `ModuleNotFoundError`, auto-run from repo root:
+**Dependencies**: If a script fails with `ModuleNotFoundError`, do not install packages silently.
 ```bash
 pip install -r requirements.txt
 ```
-Try `pip3` or `python -m pip install requests python-dotenv` if that fails. Never ask the user to install packages.
+Before any install attempt, tell the user which command you want to run and ask for permission because it may modify the current Python environment or a global environment when no virtual environment is active.
+If a virtual environment is already active, prefer installing there after the user agrees.
+If no virtual environment is active, explicitly warn that the install may go to the current or global Python environment and ask again before proceeding.
+If the user does not approve, stop and provide the exact manual install command instead.
+Try `pip3` or `python -m pip install requests python-dotenv` only after the user has agreed to dependency installation.
 
 **Credentials**:
-1. Do not proactively read `.env`. Run `python skills/mocreo-smart-system/scripts/v3_login.py` from the repository root as the first step. If it exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the fixed "Credential Missing" response defined in the root `SKILL.md` verbatim and wait for the user to confirm setup is complete before continuing.
+1. Do not proactively read `.env`. Start with the auth resolver that matches the task, usually `python skills/mocreo-smart-system/scripts/v3_resolve_auth.py --policy ...` from the repository root. If the resolver or `v3_login.py` exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the fixed "Credential Missing" response defined in the root `SKILL.md` verbatim and wait for the user to confirm setup is complete before continuing.
 2. The bootstrap identifies the platform by guided questions about the app, hub model, or sensor family. It uses this mapping:
    - `MOCREO Smart App` = `MOCREO Smart System` = `MOCREO V3`
    - V3 hubs: `H3`, `H5-Lite`, `H5-Pro`, `H6-Lite`, `H6-Pro`
@@ -46,7 +50,7 @@ Try `pip3` or `python -m pip install requests python-dotenv` if that fails. Neve
 ## Script Location
 All Smart System scripts are in `skills/mocreo-smart-system/scripts/`. Always run from the repository root:
 ```bash
-python skills/mocreo-smart-system/scripts/v3_login.py [args]
+python skills/mocreo-smart-system/scripts/v3_resolve_auth.py --policy asset-read --asset_id <ASSET_ID>
 ```
 
 ## Timestamp Format
@@ -60,22 +64,31 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
 
 1. **Atomic Operations First**: All tasks must use the existing Smart System scripts. Prefer the resolver and atomic scripts that already exist in this folder before considering any new helper code.
 2. **Standard Flow**:
-   - Login -> get token
-   - List assets (`v3_list_assets.py`) to find Asset ID
-   - For asset-scoped scripts that support both auth modes, first resolve the best saved API key for the selected asset from the local registry with `v3_resolve_apikey.py`, then prefer that API key by default unless the route has an explicit exception
-   - List devices (`v3_list_devices.py`) under that asset to find Device ID
-   - Execute specific operations using those IDs
+   - Identify the operation type first: `token-only`, `asset-read`, `asset-write`, or `export`
+   - Resolve auth with `v3_resolve_auth.py` before calling the business script for that operation
+   - List assets (`v3_list_assets.py`) only when you still need to discover Asset ID
+   - List devices (`v3_list_devices.py`) only when you still need to discover Device ID
+   - Execute the target atomic script with the resolved credential and any required IDs
+   - Before presenting timestamps or units to the user, fetch the asset display context and use the formatter helpers instead of ad hoc shell commands
 3. **Authentication Modes**:
-   - Management scripts (user login, refresh, asset list, API key create/list/delete) require a Bearer Token.
+   - Management scripts (user login, refresh, asset list, API key create/list/delete) use the `token-only` policy.
    - Public asset/device business APIs are documented as `X-API-Key` APIs. In this skill, those scripts accept either `--auth <TOKEN>` or `--auth <API_KEY> --apikey`.
-   - Default policy: whenever a script supports both auth modes, use API Key by default rather than Bearer Token.
-   - Explicit exception: `v3_export_device_history.py` should use Bearer Token by default, even though the script accepts `--apikey`.
-   - Do not skip the API key resolution step for supported asset-scoped routes. Token is not the default shortcut for those routes.
-   - Keep using Bearer Token only for flows that require it, such as login, token refresh, asset listing, and API key management.
+   - Asset-scoped read operations use the `asset-read` policy: first resolve a saved read-capable key for that asset, then fall back to login token only when needed.
+   - Asset-scoped mutating operations use the `asset-write` policy: first resolve a saved write-capable key for that asset, then fall back to login token only when needed.
+   - `v3_export_device_history.py` is the explicit exception: use the `export` policy, which is token-first.
+   - Use `v3_resolve_auth.py` rather than open-coding the key lookup order in chat or in one-off shell snippets.
    - Do not silently create a new API key just to satisfy that preference. If no suitable saved API key is available in the local registry for the selected asset, fall back to Bearer Token unless the user explicitly asks to create or save an API key.
+   - A `v3_resolve_apikey.py` result of `{"found": false}` is a normal cache miss, not a user-facing error. Continue with Bearer Token fallback without describing that branch as a failure.
    - Remember that API keys are asset-bound. Resolve them by `asset_id`, and prefer a key whose saved permission profile matches the requested operation.
-   - For supported asset-scoped routes, the expected order is: resolve local registry key -> try API Key -> only then fall back to Bearer Token if no suitable key exists or the API-key path fails in an allowed fallback case.
+   - For supported asset-scoped routes, the expected order is: resolve auth policy -> try the resolved credential -> only then fall back to Bearer Token in the allowed fallback case.
    - Export is a documented exception to that order: for `v3_export_device_history.py`, start with Bearer Token instead of API Key until the backend export bug is fixed.
+   - Common mappings:
+     - `GET /v1/assets` -> `token-only`
+     - `GET /v1/assets/{assetId}` -> `asset-read`
+     - `PATCH /v1/assets/{assetId}` -> `asset-write`
+     - `PATCH /v1/assets/{assetId}/config` -> `asset-write`
+     - Read-only device status, signal, and history routes -> `asset-read`
+     - Device or asset rename/update routes -> `asset-write`
    - If an API-key-backed request returns `403` with a permission message such as `Forbidden: API Key does not have the required permissions`, tell the user the API key is valid but lacks the required permission for that operation. Do not describe that case as bad credentials, missing setup, or an expired session.
    - If a token-backed management request such as API key creation, listing, or deletion returns `403`, tell the user their signed-in account lacks sufficient role permissions on that asset for that management action. Do not describe that case as a bad login, expired token, or missing API key.
    - Use these response patterns for permission-denied cases:
@@ -137,15 +150,16 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
    - If the user does not specify a device, list devices under the chosen asset and match by display name, model, or device type.
    - Do not guess a destructive target. If multiple assets or devices are plausible for a mutating request, ask a short clarifying question.
 9. **User-Facing Formatting Rules**:
-   - Before presenting temperature readings, timestamps, or export expectations to the user, fetch the asset details with `v3_get_asset_details.py` and use the asset config as the display source of truth when available.
-   - Use `config.tz` as the default timezone for user-facing timestamps unless the user explicitly asked for a different timezone.
+   - Before presenting temperature readings, timestamps, or export expectations to the user, fetch the asset display context with `v3_get_asset_display_context.py` and use that output as the display source of truth when available.
+   - Use the returned `tz` as the default timezone for user-facing timestamps unless the user explicitly asked for a different timezone.
    - If `config.timeFormat` is `hour12`, present times in a familiar 12-hour local format such as `02/26/2026 08:58:20 AM`. If it is `hour24`, present times in a familiar 24-hour local format such as `2026-02-26 08:58:20`.
-   - For temperature data, prefer the asset's configured temperature unit from `config.units.temperature` when it clearly maps to Celsius or Fahrenheit.
+   - Format timestamps with `v3_format_timestamps.py` rather than ad hoc `python -c` one-liners. If the formatter returns `success=false`, do not retry with improvised commands; present UTC or raw timestamps and explain that local timezone formatting was unavailable on the current machine.
+   - For temperature data, prefer the normalized `temperatureUnit` object from `v3_get_asset_display_context.py` rather than inferring from raw terminal glyphs.
    - Treat clear values such as `C`, `F`, `°C`, `°F`, `℃`, or `℉` as trustworthy unit settings.
    - If terminal output garbles the unit glyph, inspect the underlying Unicode value before treating it as invalid.
    - Normalize unit glyphs by code point first, not by terminal appearance. In particular, `\u2103` means `℃` and `\u2109` means `℉`, even if the terminal renders a different character.
    - Treat visually corrupted terminal renderings such as `沈` or `⊥` as display artifacts, not as authoritative unit values, until the underlying Unicode value has been checked.
-   - Only treat the configured temperature unit as unreadable when the underlying value still does not map cleanly to Celsius or Fahrenheit after that normalization step. If that happens, tell the user the asset's temperature-unit setting could not be read cleanly from the server response, then fall back to the most reliable observed source for that response path.
+   - Never infer `°F` or `°C` from the numeric temperature value alone. If the normalized unit is still unreadable, tell the user the asset's temperature-unit setting could not be read cleanly from the server response instead of guessing.
    - If you convert temperature values for display, say which unit you are showing.
 10. **History Query Rules**:
    - For `v3_get_device_history.py`, always provide `from`, `to`, `tz`, and `field`.
@@ -159,7 +173,16 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
    - For latest-reading requests, start with a heuristic window such as `max(6 hours, N * 10 minutes * 12)` and request enough rows to cover that window comfortably.
    - After the data is returned, sort the records by `time` in ascending order yourself and take the final `N` rows as the latest readings.
    - If the initial window does not return enough rows, automatically widen the time range and retry before telling the user the data is missing.
-11. **Export Query Rules**:
+11. **Policy-Driven Entry Rules**:
+   - Do not treat `v3_get_device_details_auto.py` or `v3_get_device_history_auto.py` as the primary entry for new work.
+   - For new Smart System tasks, prefer `v3_resolve_auth.py` plus the existing atomic business script for the route you need.
+   - Think in policies, not endpoint-specific wrappers:
+     - asset or device reads -> resolve `asset-read`, then call the read script
+     - asset or device writes -> resolve `asset-write`, then call the write script
+     - token-only management routes -> resolve `token-only`, then call the management script
+     - export -> resolve `export`, then call the export script
+   - The older `*_auto.py` scripts are compatibility shortcuts for common read-only queries, not the preferred design surface for future expansion.
+12. **Export Query Rules**:
    - For `v3_export_device_history.py`, always provide `email`, `from`, `to`, `tz`, and `fields`.
    - Valid `fields` values are comma-separated combinations of `temperature`, `humidity`, `water_leak`, `water_level`, and `frozen`.
    - Optional export aggregation uses the same `windowDuration` and `aggregationsType` rules as history queries.
@@ -170,9 +193,10 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
 
 ## Scripts
 
-### User & Auth (2)
+### User & Auth (3)
 - `v3_login.py`: `--email` `--password` -> full JSON (access_token + refresh_token)
 - `v3_refresh_token.py`: `--token` `--refresh_token` -> new token JSON
+- `v3_resolve_auth.py`: `--policy` [`--asset_id`] [`--permissions`] -> short-circuit auth resolution for `token-only`, `asset-read`, `asset-write`, or `export`
 
 ### API Keys (4)
 - `v3_create_apikey.py`: `--token` `--asset_id` `--name` `--permissions` [`--expires_at`] [`--asset_name`] -> new key info
@@ -180,46 +204,48 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
 - `v3_delete_apikey.py`: `--token` `--asset_id` `--prefix` [`--force`] -> delete key by prefix
 - `v3_resolve_apikey.py`: `--asset_id` [`--permissions`] [`--tier`] -> best saved API key record for that asset from the local registry
 
-### Assets (4)
+### Assets (5)
 - `v3_list_assets.py`: `--token` -> all assets
 - `v3_get_asset_details.py`: `--auth` `--asset_id` [`--apikey`] -> asset config
+- `v3_get_asset_display_context.py`: `--auth` `--asset_id` [`--apikey`] -> normalized asset display metadata including timezone, time format, and trusted temperature-unit analysis
 - `v3_update_asset.py`: `--auth` `--asset_id` `--name` [`--apikey`] -> rename asset
 - `v3_update_asset_config.py`: `--auth` `--asset_id` `--config` [`--apikey`] [`--safe`] -> update timezone, city, etc.
 
-### Devices & Monitoring (6)
+### Devices & Monitoring (8)
 - `v3_list_devices.py`: `--auth` `--asset_id` [`--apikey`] -> all devices
 - `v3_get_device_details.py`: `--auth` `--asset_id` `--device_id` [`--apikey`] -> real-time status (temp, battery, online)
+- `v3_get_device_details_auto.py`: `--asset_id` `--device_id` -> compatibility shortcut for read-only device details; prefer `v3_resolve_auth.py` + `v3_get_device_details.py` for new flows
 - `v3_update_device_name.py`: `--auth` `--asset_id` `--device_id` `--name` [`--apikey`] -> rename device
 - `v3_get_device_signal.py`: `--auth` `--asset_id` `--device_id` [`--apikey`] -> signal strength with gateway
 - `v3_get_device_history.py`: `--auth` `--asset_id` `--device_id` `--start` `--end` `--tz` `--field` [`--window`] [`--agg`] [`--limit`] [`--apikey`] -> historical data
+- `v3_get_device_history_auto.py`: `--asset_id` `--device_id` `--start` `--end` `--field` [`--limit`] [`--window`] [`--agg`] [`--tz`] -> compatibility shortcut for read-only history; prefer `v3_resolve_auth.py` + `v3_get_device_history.py` for new flows
 - `v3_export_device_history.py`: `--auth` `--asset_id` `--device_id` `--email` `--start` `--end` `--tz` `--fields` [`--window`] [`--agg`] [`--apikey`] -> export to email
+
+### Helpers (3)
+- `v3_auth_policy_helpers.py`: internal shared auth-policy helper used by resolver and compatibility shortcuts
+- `v3_query_read_helpers.py`: backward-compatible wrapper around `v3_auth_policy_helpers.py`
+- `v3_format_timestamps.py`: `--tz` `--time_format` `--timestamps <TS...>` -> formatted user-facing timestamps with graceful fallback when timezone data is unavailable
 
 ## Example Workflow
 
 ```bash
-# Login - outputs full JSON with access_token and refresh_token
-TOKEN=$(python skills/mocreo-smart-system/scripts/v3_login.py | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-REFRESH=$(python skills/mocreo-smart-system/scripts/v3_login.py | python -c "import sys,json; print(json.load(sys.stdin)['refresh_token'])")
+# Resolve token-only auth for management routes such as asset listing
+python skills/mocreo-smart-system/scripts/v3_resolve_auth.py --policy token-only
 
-# Find Asset ID
-python skills/mocreo-smart-system/scripts/v3_list_assets.py --token "$TOKEN"
+# Resolve read auth for an asset-scoped read route
+python skills/mocreo-smart-system/scripts/v3_resolve_auth.py \
+  --policy asset-read --asset_id <ASSET_ID> --permissions device.read
 
-# List devices under an asset
-python skills/mocreo-smart-system/scripts/v3_list_devices.py --auth "$TOKEN" --asset_id <ASSET_ID>
+# Resolve write auth for an asset-scoped mutation
+python skills/mocreo-smart-system/scripts/v3_resolve_auth.py \
+  --policy asset-write --asset_id <ASSET_ID> --permissions asset.update
 
-# Get device history for the past 24 hours
-START=$(python -c "import time; print(int((time.time()-86400)*1000))")
-END=$(python -c "import time; print(int(time.time()*1000))")
-python skills/mocreo-smart-system/scripts/v3_get_device_history.py --auth "$TOKEN" \
-  --asset_id <ASSET_ID> --device_id <DEVICE_ID> \
-  --start "$START" --end "$END" --tz "Asia/Shanghai" --field "temperature"
+# Resolve export auth for export routes (token-first)
+python skills/mocreo-smart-system/scripts/v3_resolve_auth.py \
+  --policy export --asset_id <ASSET_ID>
 
-# Export data to email
-python skills/mocreo-smart-system/scripts/v3_export_device_history.py --auth "$TOKEN" \
-  --asset_id <ASSET_ID> --device_id <DEVICE_ID> --email user@example.com \
-  --start "$START" --end "$END" --tz "Asia/Shanghai" --fields "temperature,humidity"
-
-# Refresh when token expires (do this automatically, don't ask the user)
-TOKEN=$(python skills/mocreo-smart-system/scripts/v3_refresh_token.py --token "$TOKEN" --refresh_token "$REFRESH" \
-  | python -c "import sys,json; d=json.load(sys.stdin); print(d.get('result', d)['access_token'])")
+# Then call the atomic business script with the resolved auth value
+# and add --apikey only when the resolver says apikey=true.
 ```
+
+

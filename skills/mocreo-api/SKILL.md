@@ -1,7 +1,7 @@
 ---
 name: mocreo-api
 description: MOCREO English device-data router for battery, temperature, humidity, online status, alerts, and history queries by device ID, node ID, asset, or hub across Smart System (V3) and Sensor System (V2).
-version: 1.0.1
+version: 1.0.5
 tools: [ "run_shell_command" ]
 ---
 
@@ -49,6 +49,7 @@ The setup flow:
 - In Claude marketplace deployments, shared runtime files such as `.env` and `.mocreo_v3_apikeys.json` live at the marketplace root rather than inside `plugins/mocreo-api`.
 
 Never ask the user to send their password in chat. Never guess their platform.
+Never install Python dependencies without the user's permission. If a missing-package error appears, explain the install command first, warn when it may affect the current or global Python environment, and wait for approval before running it.
 
 ## Routing - Which Sub-Skill to Load
 
@@ -108,10 +109,13 @@ runtime-root/
 |  |  \- scripts/                <- 11 atomic Python scripts
 |  \- mocreo-smart-system/
 |     |- SKILL.md                <- Smart System instructions for AI
-|     \- scripts/                <- 15 atomic Python scripts
+|     \- scripts/                <- Smart System API scripts and auth-policy helpers
 |- openapi.en.yaml               <- Smart System OpenAPI reference
 |- openapi.zh.yaml               <- Smart System OpenAPI reference (Chinese)
 \- sensor-swagger.json          <- Sensor System Swagger reference
 ```
 
 In the canonical source repository, the Claude marketplace manifest lives at `.claude-plugin/marketplace.json`, and the self-contained Claude plugin package is generated under `plugins/mocreo-api/`. In Claude marketplace deployments, the shared `.env`, `.env.example`, and `.mocreo_v3_apikeys.json` live at the marketplace root outside the nested plugin folder.
+
+
+

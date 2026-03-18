@@ -19,7 +19,7 @@ python scripts/build_claude_plugin.py
 
 PLUGIN_MANIFEST = {
     "name": "mocreo-api",
-    "version": "1.0.1",
+    "version": "1.0.5",
     "description": "MOCREO device data assistant for English queries. Query battery, temperature, humidity, online status, alerts, and history by device ID, node ID, asset, or hub across Smart System (V3) and Sensor System (V2).",
     "author": {
         "name": "MOCREO",
@@ -163,3 +163,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

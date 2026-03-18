@@ -28,7 +28,7 @@ if __name__ == "__main__":
     )
     if not record:
         print(json.dumps({"found": False}))
-        sys.exit(1)
+        sys.exit(0)
 
     payload = {"found": True}
     payload.update(record)

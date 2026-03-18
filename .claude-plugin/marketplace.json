@@ -9,7 +9,7 @@
     {
       "name": "mocreo-api",
       "description": "English MOCREO assistant for battery, temperature, humidity, online status, alerts, and history queries by device ID, node ID, asset, or hub.",
-      "version": "1.0.1",
+      "version": "1.0.5",
       "author": {
         "name": "MOCREO"
       },
@@ -34,3 +34,5 @@
     }
   ]
 }
+
+

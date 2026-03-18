@@ -1,7 +1,7 @@
 ---
 name: mocreo-sensor-system
 description: MOCREO Sensor System skill for battery, status, alerts, node data, and monitoring queries on V2 hubs and sensor nodes.
-version: 1.0.0
+version: 1.0.1
 tools: [ "run_shell_command" ]
 ---
 
@@ -15,11 +15,15 @@ Before using this sub-skill directly, check the root router skill at `skills/moc
 
 ## Environment (AI Handles Automatically)
 
-**Dependencies**: If a script fails with `ModuleNotFoundError`, auto-run from repo root:
+**Dependencies**: If a script fails with `ModuleNotFoundError`, do not install packages silently.
 ```bash
 pip install -r requirements.txt
 ```
-Try `pip3` or `python -m pip install requests python-dotenv` if that fails. Never ask the user to install packages.
+Before any install attempt, tell the user which command you want to run and ask for permission because it may modify the current Python environment or a global environment when no virtual environment is active.
+If a virtual environment is already active, prefer installing there after the user agrees.
+If no virtual environment is active, explicitly warn that the install may go to the current or global Python environment and ask again before proceeding.
+If the user does not approve, stop and provide the exact manual install command instead.
+Try `pip3` or `python -m pip install requests python-dotenv` only after the user has agreed to dependency installation.
 
 **Credentials**:
 1. Do not proactively read `.env`. Run `python skills/mocreo-sensor-system/scripts/v2_login.py` from the repository root as the first step. If it exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the fixed "Credential Missing" response defined in the root `SKILL.md` verbatim and wait for the user to confirm setup is complete before continuing.
@@ -109,3 +113,5 @@ python skills/mocreo-sensor-system/scripts/v2_dismiss_all_alerts.py --token "$TO
 # Refresh when token expires (do this automatically, don't ask the user)
 TOKEN=$(python skills/mocreo-sensor-system/scripts/v2_refresh_token.py --refresh_token "$REFRESH" | python -c "import sys,json; print(json.load(sys.stdin)['data']['accessToken'])")
 ```
+
+
