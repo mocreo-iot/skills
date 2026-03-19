@@ -46,9 +46,8 @@ PLUGIN_MANIFEST = {
 
 DIRECTORY_COPIES = [
     ("common", "common"),
-    ("skills/mocreo-api", "skills/mocreo-api"),
-    ("skills/mocreo-sensor-system", "skills/mocreo-sensor-system"),
-    ("skills/mocreo-smart-system", "skills/mocreo-smart-system"),
+    ("mocreo-sensor-system", "skills/mocreo-sensor-system"),
+    ("mocreo-smart-system", "skills/mocreo-smart-system"),
 ]
 
 FILE_COPIES = [
@@ -111,6 +110,14 @@ def write_plugin_manifest() -> None:
     )
 
 
+def write_skill_router() -> None:
+    src = REPO_ROOT / "SKILL.md"
+    dst = PACKAGE_ROOT / "skills" / "mocreo-api" / "SKILL.md"
+    ensure_exists(src)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dst)
+
+
 def write_package_notice() -> None:
     notice_path = PACKAGE_ROOT / "README.generated.md"
     notice_path.write_text(PACKAGE_NOTICE, encoding="utf-8")
@@ -155,6 +162,7 @@ def main() -> None:
     for src_rel, dst_rel in FILE_COPIES:
         copy_file(src_rel, dst_rel)
 
+    write_skill_router()
     write_plugin_manifest()
     write_package_notice()
     validate_package()
@@ -163,5 +171,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
 

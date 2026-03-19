@@ -7,7 +7,9 @@ tools: [ "run_shell_command" ]
 
 # MOCREO Smart System Skill
 
-Before using this sub-skill directly, check the root router skill at `skills/mocreo-api/SKILL.md` and follow its routing rules first.
+Before using this sub-skill directly, check the root router skill first:
+- Source repo or `npx skills add`: `SKILL.md`
+- Claude marketplace package: `skills/mocreo-api/SKILL.md`
 
 ## Triggering
 - When users ask about MOCREO Smart System devices (H5Pro, H6Pro, NS1/NS2/NS3, etc.).
@@ -26,7 +28,10 @@ If the user does not approve, stop and provide the exact manual install command 
 Try `pip3` or `python -m pip install requests python-dotenv` only after the user has agreed to dependency installation.
 
 **Credentials**:
-1. Do not proactively read `.env`. Start with the auth resolver that matches the task, usually `python skills/mocreo-smart-system/scripts/v3_resolve_auth.py --policy ...` from the repository root. If the resolver or `v3_login.py` exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the fixed "Credential Missing" response defined in the root `SKILL.md` verbatim and wait for the user to confirm setup is complete before continuing.
+1. Do not proactively read `.env`. Start with the auth resolver that matches the task from the runtime root.
+   - Source repo or `npx skills add`: `python mocreo-smart-system/scripts/v3_resolve_auth.py --policy ...`
+   - Claude marketplace package: `python skills/mocreo-smart-system/scripts/v3_resolve_auth.py --policy ...`
+   If the resolver or `v3_login.py` exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the fixed "Credential Missing" response defined in the root `SKILL.md` verbatim and wait for the user to confirm setup is complete before continuing.
 2. The bootstrap identifies the platform by guided questions about the app, hub model, or sensor family. It uses this mapping:
    - `MOCREO Smart App` = `MOCREO Smart System` = `MOCREO V3`
    - V3 hubs: `H3`, `H5-Lite`, `H5-Pro`, `H6-Lite`, `H6-Pro`
@@ -39,7 +44,9 @@ Try `pip3` or `python -m pip install requests python-dotenv` only after the user
 
 **Token lifecycle**:
 1. After login, save both `access_token` and `refresh_token` from the JSON output.
-2. If any API call returns 401: automatically run `python skills/mocreo-smart-system/scripts/v3_refresh_token.py` from the repository root with the saved tokens, then retry the original call.
+2. If any API call returns 401: automatically run the refresh script from the runtime root with the saved tokens, then retry the original call.
+   - Source repo or `npx skills add`: `python mocreo-smart-system/scripts/v3_refresh_token.py`
+   - Claude marketplace package: `python skills/mocreo-smart-system/scripts/v3_refresh_token.py`
 3. If refresh also fails: inform the user the session has expired and re-run login.
 
 ## Output Contract
@@ -48,9 +55,9 @@ Try `pip3` or `python -m pip install requests python-dotenv` only after the user
 - **exit code**: `0` = success, `1` = failure
 
 ## Script Location
-All Smart System scripts are in `skills/mocreo-smart-system/scripts/`. Always run from the repository root:
+All Smart System scripts are in the sub-skill directory. Always run from the runtime root:
 ```bash
-python skills/mocreo-smart-system/scripts/v3_resolve_auth.py --policy asset-read --asset_id <ASSET_ID>
+python mocreo-smart-system/scripts/v3_resolve_auth.py --policy asset-read --asset_id <ASSET_ID>
 ```
 
 ## Timestamp Format
@@ -230,18 +237,18 @@ python -c "import time; print(int((time.time()-86400)*1000))"   # 24h ago
 
 ```bash
 # Resolve token-only auth for management routes such as asset listing
-python skills/mocreo-smart-system/scripts/v3_resolve_auth.py --policy token-only
+python mocreo-smart-system/scripts/v3_resolve_auth.py --policy token-only
 
 # Resolve read auth for an asset-scoped read route
-python skills/mocreo-smart-system/scripts/v3_resolve_auth.py \
+python mocreo-smart-system/scripts/v3_resolve_auth.py \
   --policy asset-read --asset_id <ASSET_ID> --permissions device.read
 
 # Resolve write auth for an asset-scoped mutation
-python skills/mocreo-smart-system/scripts/v3_resolve_auth.py \
+python mocreo-smart-system/scripts/v3_resolve_auth.py \
   --policy asset-write --asset_id <ASSET_ID> --permissions asset.update
 
 # Resolve export auth for export routes (token-first)
-python skills/mocreo-smart-system/scripts/v3_resolve_auth.py \
+python mocreo-smart-system/scripts/v3_resolve_auth.py \
   --policy export --asset_id <ASSET_ID>
 
 # Then call the atomic business script with the resolved auth value

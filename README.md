@@ -10,10 +10,10 @@ Let your AI agent operate MOCREO devices directly, using plain language.
 /plugin marketplace add mocreo-iot/skills
 ```
 
-Or install a specific version by package name:
+Or install a specific plugin from that marketplace:
 
 ```bash
-/plugin install mocreo-skills@1.0.0
+/plugin install mocreo-api@mocreo-marketplace
 ```
 
 **Option 2 — npx (skills.sh):**
@@ -22,8 +22,11 @@ Or install a specific version by package name:
 npx skills add mocreo-iot/skills
 ```
 
-Both methods install the root `mocreo-api` skill, which acts as a router for the two system-specific skills in this repo:
+Both methods install the root `mocreo-api` skill, which acts as a router for the two system-specific skills in this repo.
 
+For `npx skills add`, this repository is intentionally published as a single root skill bundle so users do not need to choose sub-skills manually. If your CLI shows `mocreo-api`, `mocreo-sensor-system`, and `mocreo-smart-system` as separate install choices, you are on an older incompatible revision.
+
+The bundled router includes:
 - `mocreo-sensor-system`
 - `mocreo-smart-system`
 
@@ -31,7 +34,7 @@ After installation, ask naturally for the task you want. The root skill should r
 
 ## First Login Setup
 
-Run repository commands from the repository root.
+Run commands from the installed runtime root.
 
 On first use, run:
 

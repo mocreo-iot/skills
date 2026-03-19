@@ -7,7 +7,9 @@ tools: [ "run_shell_command" ]
 
 # MOCREO Sensor System Skill
 
-Before using this sub-skill directly, check the root router skill at `skills/mocreo-api/SKILL.md` and follow its routing rules first.
+Before using this sub-skill directly, check the root router skill first:
+- Source repo or `npx skills add`: `SKILL.md`
+- Claude marketplace package: `skills/mocreo-api/SKILL.md`
 
 ## Triggering
 - When users ask to query MOCREO Sensor System data.
@@ -26,7 +28,10 @@ If the user does not approve, stop and provide the exact manual install command 
 Try `pip3` or `python -m pip install requests python-dotenv` only after the user has agreed to dependency installation.
 
 **Credentials**:
-1. Do not proactively read `.env`. Run `python skills/mocreo-sensor-system/scripts/v2_login.py` from the repository root as the first step. If it exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the fixed "Credential Missing" response defined in the root `SKILL.md` verbatim and wait for the user to confirm setup is complete before continuing.
+1. Do not proactively read `.env`. Run the login script from the runtime root as the first step.
+   - Source repo or `npx skills add`: `python mocreo-sensor-system/scripts/v2_login.py`
+   - Claude marketplace package: `python skills/mocreo-sensor-system/scripts/v2_login.py`
+   If it exits with code `2` and stderr contains `MOCREO_CREDENTIALS_MISSING`, output the fixed "Credential Missing" response defined in the root `SKILL.md` verbatim and wait for the user to confirm setup is complete before continuing.
 2. The bootstrap identifies the platform by guided questions about the app, hub model, or sensor family. It uses this mapping:
    - `MOCREO Sensor App` = `MOCREO Sensor System` = `MOCREO V2`
    - V2 hubs: `H1`, `H2`
@@ -39,7 +44,9 @@ Try `pip3` or `python -m pip install requests python-dotenv` only after the user
 
 **Token lifecycle**:
 1. After login, save both `access_token` and `refresh_token` from the JSON output.
-2. If any API call returns 401: automatically run `python skills/mocreo-sensor-system/scripts/v2_refresh_token.py` from the repository root with the saved refresh token, then retry the original call.
+2. If any API call returns 401: automatically run the refresh script from the runtime root with the saved refresh token, then retry the original call.
+   - Source repo or `npx skills add`: `python mocreo-sensor-system/scripts/v2_refresh_token.py`
+   - Claude marketplace package: `python skills/mocreo-sensor-system/scripts/v2_refresh_token.py`
 3. If refresh also fails: inform the user the session has expired and re-run login.
 
 ## Output Contract
@@ -48,9 +55,9 @@ Try `pip3` or `python -m pip install requests python-dotenv` only after the user
 - **exit code**: `0` = success, `1` = failure
 
 ## Script Location
-All Sensor System scripts are in `skills/mocreo-sensor-system/scripts/`. Always run from the repository root:
+All Sensor System scripts are in the sub-skill directory. Always run from the runtime root:
 ```bash
-python skills/mocreo-sensor-system/scripts/v2_login.py [args]
+python mocreo-sensor-system/scripts/v2_login.py [args]
 ```
 
 ## Instructions
@@ -97,21 +104,21 @@ python skills/mocreo-sensor-system/scripts/v2_login.py [args]
 
 ```bash
 # Login - outputs full OAuth JSON
-TOKEN=$(python skills/mocreo-sensor-system/scripts/v2_login.py | python -c "import sys,json; print(json.load(sys.stdin)['data']['accessToken'])")
-REFRESH=$(python skills/mocreo-sensor-system/scripts/v2_login.py | python -c "import sys,json; print(json.load(sys.stdin)['data']['refreshToken'])")
+TOKEN=$(python mocreo-sensor-system/scripts/v2_login.py | python -c "import sys,json; print(json.load(sys.stdin)['data']['accessToken'])")
+REFRESH=$(python mocreo-sensor-system/scripts/v2_login.py | python -c "import sys,json; print(json.load(sys.stdin)['data']['refreshToken'])")
 
 # List all sensor nodes
-python skills/mocreo-sensor-system/scripts/v2_list_nodes.py --token "$TOKEN"
+python mocreo-sensor-system/scripts/v2_list_nodes.py --token "$TOKEN"
 
 # Get last 10 samples for a node
-python skills/mocreo-sensor-system/scripts/v2_get_node_samples.py --token "$TOKEN" --node_id <NODE_ID> --limit 10
+python mocreo-sensor-system/scripts/v2_get_node_samples.py --token "$TOKEN" --node_id <NODE_ID> --limit 10
 
 # List and dismiss all alerts
-python skills/mocreo-sensor-system/scripts/v2_list_alerts.py --token "$TOKEN"
-python skills/mocreo-sensor-system/scripts/v2_dismiss_all_alerts.py --token "$TOKEN"
+python mocreo-sensor-system/scripts/v2_list_alerts.py --token "$TOKEN"
+python mocreo-sensor-system/scripts/v2_dismiss_all_alerts.py --token "$TOKEN"
 
 # Refresh when token expires (do this automatically, don't ask the user)
-TOKEN=$(python skills/mocreo-sensor-system/scripts/v2_refresh_token.py --refresh_token "$REFRESH" | python -c "import sys,json; print(json.load(sys.stdin)['data']['accessToken'])")
+TOKEN=$(python mocreo-sensor-system/scripts/v2_refresh_token.py --refresh_token "$REFRESH" | python -c "import sys,json; print(json.load(sys.stdin)['data']['accessToken'])")
 ```
 
 
